@@ -1,0 +1,151 @@
+{
+  "name": "Resume Relevance Check",
+  "version": "1.0.0",
+  "description": "AI-powered resume relevance analysis with Hugging Face transformers",
+  "main": "src/api/main.py",
+  "scripts": {
+    "start:api": "python -m uvicorn src.api.main:app --reload --host 127.0.0.1 --port 8000",
+    "start:dashboard": "python -m streamlit run src/dashboard/streamlit_app.py --server.port 8501",
+    "start:both": "python qoder_setup.py",
+    "install": "pip install -r requirements.txt",
+    "test": "python -m pytest tests/ -v"
+  },
+  "environment": {
+    "PYTHONPATH": ".",
+    "PORT": "8000",
+    "STREAMLIT_PORT": "8501"
+  },
+  "dependencies": {
+    "python": ">=3.8",
+    "fastapi": "^0.104.1",
+    "uvicorn": "^0.24.0",
+    "streamlit": "^1.28.0",
+    "transformers": "^4.35.0",
+    "sentence-transformers": "^2.2.2",
+    "torch": "^2.1.0",
+    "sqlalchemy": "^2.0.23",
+    "plotly": "^5.17.0",
+    "python-multipart": "^0.0.6",
+    "pandas": "^2.1.3",
+    "numpy": "^1.25.2"
+  },
+  "qoder": {
+    "runConfigurations": [
+      {
+        "name": "FastAPI Backend",
+        "type": "python",
+        "command": "uvicorn",
+        "args": ["src.api.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+        "env": {
+          "PYTHONPATH": "."
+        }
+      },
+      {
+        "name": "Streamlit Dashboard", 
+        "type": "python",
+        "command": "streamlit",
+        "args": ["run", "src/dashboard/streamlit_app.py", "--server.port", "8501"],
+        "env": {
+          "PYTHONPATH": "."
+        }
+      },
+      {
+        "name": "Complete Setup",
+        "type": "python",
+        "script": "qoder_setup.py"
+      }
+    ],
+    "gitIntegration": {
+      "repository": "https://github.com/Pratima-Dixit-R/resume-relevance-check.git",
+      "branch": "main",
+      "autoCommit": false,
+      "autoPush": false
+    },
+    "preview": {
+      "api": "http://127.0.0.1:8000",
+      "docs": "http://127.0.0.1:8000/docs", 
+      "dashboard": "http://localhost:8501"
+    },
+    "extensions": [
+      "Python",
+      "Git",
+      "REST Client",
+      "JSON"
+    ]
+  }
+}{
+  "name": "Resume Relevance Check",
+  "version": "1.0.0",
+  "description": "AI-powered resume relevance analysis with Hugging Face transformers",
+  "main": "src/api/main.py",
+  "scripts": {
+    "start:api": "python -m uvicorn src.api.main:app --reload --host 127.0.0.1 --port 8000",
+    "start:dashboard": "python -m streamlit run src/dashboard/streamlit_app.py --server.port 8501",
+    "start:both": "python qoder_setup.py",
+    "install": "pip install -r requirements.txt",
+    "test": "python -m pytest tests/ -v"
+  },
+  "environment": {
+    "PYTHONPATH": ".",
+    "PORT": "8000",
+    "STREAMLIT_PORT": "8501"
+  },
+  "dependencies": {
+    "python": ">=3.8",
+    "fastapi": "^0.104.1",
+    "uvicorn": "^0.24.0",
+    "streamlit": "^1.28.0",
+    "transformers": "^4.35.0",
+    "sentence-transformers": "^2.2.2",
+    "torch": "^2.1.0",
+    "sqlalchemy": "^2.0.23",
+    "plotly": "^5.17.0",
+    "python-multipart": "^0.0.6",
+    "pandas": "^2.1.3",
+    "numpy": "^1.25.2"
+  },
+  "qoder": {
+    "runConfigurations": [
+      {
+        "name": "FastAPI Backend",
+        "type": "python",
+        "command": "uvicorn",
+        "args": ["src.api.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
+        "env": {
+          "PYTHONPATH": "."
+        }
+      },
+      {
+        "name": "Streamlit Dashboard", 
+        "type": "python",
+        "command": "streamlit",
+        "args": ["run", "src/dashboard/streamlit_app.py", "--server.port", "8501"],
+        "env": {
+          "PYTHONPATH": "."
+        }
+      },
+      {
+        "name": "Complete Setup",
+        "type": "python",
+        "script": "qoder_setup.py"
+      }
+    ],
+    "gitIntegration": {
+      "repository": "https://github.com/Pratima-Dixit-R/resume-relevance-check.git",
+      "branch": "main",
+      "autoCommit": false,
+      "autoPush": false
+    },
+    "preview": {
+      "api": "http://127.0.0.1:8000",
+      "docs": "http://127.0.0.1:8000/docs", 
+      "dashboard": "http://localhost:8501"
+    },
+    "extensions": [
+      "Python",
+      "Git",
+      "REST Client",
+      "JSON"
+    ]
+  }
+}

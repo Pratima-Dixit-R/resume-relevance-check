@@ -1,0 +1,3 @@
+[33mdbf645d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m  fix: Update requirements.txt for Python 3.13 compatibility
+[33m1a9d67b[m  feat: Complete Resume Relevance Check with AI-powered analysis
+[33m297617d[m Enhanced application with Hugging Face transformers and advanced frontend features
