@@ -66,6 +66,3 @@ models/
 # API keys and secrets
 secrets.txt
 api_keys.txt
-
-# Git artifacts
-tatus
