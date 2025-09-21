@@ -1,4 +1,6 @@
-@echo off
+cd "c:\Users\prati\.vscode\resume-relevance-check"
+@echo cd "c:\Users\prati\.vscode\resume-relevance-check"
+push_to_github.bat
 cd /d "c:\Users\prati\.vscode\resume-relevance-check"
 
 echo === GitHub Push Script ===
