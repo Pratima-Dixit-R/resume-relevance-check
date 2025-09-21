@@ -1,25 +1,19 @@
-# Resume Relevance Check - Production Requirements
-# Python 3.13.7 Compatible - Windows Deployment
-# User: Pratima-Dixit-R
-
+# Resume Relevance Check - Ollama Integration
 # Core web framework dependencies
+streamlit>=1.28.1
+plotly>=5.17.0
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
 
-# Dashboard and UI
-streamlit>=1.28.1
-plotly>=5.17.0
-
 # Database and ORM
 sqlalchemy>=2.0.23
-alembic>=1.12.1
 
 # Text processing and document parsing
 PyPDF2>=3.0.1
 python-docx>=1.1.0
 
-# Machine learning and data processing - Updated for Python 3.13
+# Machine learning and data processing
 scikit-learn>=1.4.0
 numpy>=1.26.0
 pandas>=2.2.0
@@ -28,23 +22,13 @@ pandas>=2.2.0
 fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.23.0
 
-# Advanced NLP and embeddings with Hugging Face
-sentence-transformers>=2.3.0
-torch>=2.1.0
-transformers>=4.36.0
-huggingface-hub>=0.20.0
-
-# Development and testing
-pytest>=7.4.3
-pytest-asyncio>=0.21.1
-httpx>=0.25.2
+# Ollama integration
+ollama>=0.1.7
+requests>=2.31.0
 
 # Environment and configuration
 python-dotenv>=1.0.0
 
 # Additional utilities
-requests>=2.31.0
 aiofiles>=23.2.1
-
-# Windows-specific optimizations
 colorama>=0.4.6

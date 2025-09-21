@@ -1,17 +1,23 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import ollama
 import numpy as np
 import logging
-from src.utils.embeddings import get_embedding_manager
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import json
+import os
 
-def calculate_semantic_match(resume_data, jd_data, use_transformers=True):
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def calculate_semantic_match(resume_data, jd_data, use_ollama=True):
     """
-    Calculate semantic similarity between resume and job description using advanced embeddings.
+    Calculate semantic similarity between resume and job description using Ollama.
     
     Parameters:
     resume_data (dict or str): Resume data or text
     jd_data (dict or str): Job description data or text
-    use_transformers (bool): Whether to use transformer-based embeddings
+    use_ollama (bool): Whether to use Ollama for semantic analysis
     
     Returns:
     float: A score between 0 and 100 representing semantic similarity
@@ -31,9 +37,9 @@ def calculate_semantic_match(resume_data, jd_data, use_transformers=True):
         return 0.0
     
     try:
-        if use_transformers:
-            # Use advanced transformer-based embeddings
-            similarity_score = _calculate_transformer_similarity(resume_text, jd_text)
+        if use_ollama:
+            # Use Ollama for advanced semantic analysis
+            similarity_score = _calculate_ollama_similarity(resume_text, jd_text)
         else:
             # Fallback to TF-IDF based similarity
             similarity_score = _calculate_tfidf_similarity(resume_text, jd_text)
@@ -44,18 +50,18 @@ def calculate_semantic_match(resume_data, jd_data, use_transformers=True):
         return float(relevance_score)
     
     except Exception as e:
-        logging.error(f"Error calculating semantic match: {e}")
-        # Fallback to TF-IDF if transformers fail
+        logger.error(f"Error calculating semantic match: {e}")
+        # Fallback to TF-IDF if Ollama fails
         try:
             similarity_score = _calculate_tfidf_similarity(resume_text, jd_text)
             return float(np.clip(similarity_score * 100, 0, 100))
         except Exception as e2:
-            logging.error(f"Fallback semantic matching also failed: {e2}")
+            logger.error(f"Fallback semantic matching also failed: {e2}")
             return 0.0
 
-def _calculate_transformer_similarity(resume_text: str, jd_text: str) -> float:
+def _calculate_ollama_similarity(resume_text: str, jd_text: str) -> float:
     """
-    Calculate similarity using sentence transformers for better semantic understanding.
+    Calculate similarity using Ollama LLM for advanced semantic understanding.
     
     Args:
         resume_text: Resume text content
@@ -65,20 +71,107 @@ def _calculate_transformer_similarity(resume_text: str, jd_text: str) -> float:
         Similarity score between 0 and 1
     """
     try:
-        embedding_manager = get_embedding_manager()
+        # Check if Ollama is available
+        if not _check_ollama_availability():
+            logger.warning("Ollama not available, falling back to TF-IDF")
+            return _calculate_tfidf_similarity(resume_text, jd_text)
         
-        # Get embeddings for both texts
-        resume_embedding = embedding_manager.create_embeddings(resume_text)
-        jd_embedding = embedding_manager.create_embeddings(jd_text)
+        # Create a prompt for semantic similarity analysis
+        prompt = f"""
+Analyze the semantic similarity between this resume and job description. 
+Provide a similarity score from 0.0 to 1.0 based on:
+- Skills alignment
+- Experience relevance 
+- Domain expertise match
+- Responsibility overlap
+
+RESUME:
+{resume_text[:2000]}...
+
+JOB DESCRIPTION:
+{jd_text[:2000]}...
+
+Return only a numerical score between 0.0 and 1.0, nothing else.
+"""
         
-        # Calculate cosine similarity
-        similarity = embedding_manager.compare_embeddings(resume_embedding, jd_embedding)
+        # Use Ollama to analyze semantic similarity
+        response = ollama.generate(
+            model='llama3.2',  # Use a lightweight model for speed
+            prompt=prompt,
+            options={
+                'temperature': 0.1,  # Low temperature for consistent scoring
+                'num_predict': 10    # Short response expected
+            }
+        )
         
-        return similarity
+        # Extract numerical score from response
+        score_text = response.get('response', '0.0').strip()
+        
+        # Parse the score
+        try:
+            score = float(score_text)
+            # Ensure score is within valid range
+            score = np.clip(score, 0.0, 1.0)
+            logger.info(f"Ollama semantic similarity score: {score}")
+            return score
+        except ValueError:
+            logger.warning(f"Could not parse Ollama score: {score_text}")
+            # Fallback to analyzing response content
+            return _parse_ollama_response(score_text)
     
     except Exception as e:
-        logging.error(f"Error in transformer similarity calculation: {e}")
+        logger.error(f"Error in Ollama similarity calculation: {e}")
         raise
+
+def _check_ollama_availability() -> bool:
+    """
+    Check if Ollama is running and accessible.
+    
+    Returns:
+        bool: True if Ollama is available, False otherwise
+    """
+    try:
+        # Try to list available models
+        models = ollama.list()
+        return True
+    except Exception as e:
+        logger.warning(f"Ollama not available: {e}")
+        return False
+
+def _parse_ollama_response(response_text: str) -> float:
+    """
+    Parse Ollama response to extract similarity score.
+    
+    Args:
+        response_text: Raw response from Ollama
+        
+    Returns:
+        Parsed similarity score between 0 and 1
+    """
+    try:
+        # Look for numerical patterns in the response
+        import re
+        
+        # Find numbers that look like scores (0.0 to 1.0)
+        matches = re.findall(r'\b0?\.[0-9]+\b|\b1\.0\b|\b0\b', response_text)
+        
+        if matches:
+            score = float(matches[0])
+            return np.clip(score, 0.0, 1.0)
+        
+        # Look for percentages and convert
+        percent_matches = re.findall(r'\b([0-9]+)%', response_text)
+        if percent_matches:
+            score = float(percent_matches[0]) / 100.0
+            return np.clip(score, 0.0, 1.0)
+        
+        # Default fallback
+        logger.warning(f"Could not parse score from: {response_text}")
+        return 0.5  # Neutral score
+        
+    except Exception as e:
+        logger.error(f"Error parsing Ollama response: {e}")
+        return 0.5
 
 def _calculate_tfidf_similarity(resume_text: str, jd_text: str) -> float:
     """
@@ -111,12 +204,12 @@ def _calculate_tfidf_similarity(resume_text: str, jd_text: str) -> float:
         return similarity_score
     
     except Exception as e:
-        logging.error(f"Error in TF-IDF similarity calculation: {e}")
+        logger.error(f"Error in TF-IDF similarity calculation: {e}")
         raise
 
 def calculate_detailed_semantic_match(resume_data, jd_data):
     """
-    Calculate detailed semantic match with breakdown of different aspects.
+    Calculate detailed semantic match with breakdown using Ollama for analysis.
     
     Returns:
     dict: Detailed breakdown of semantic similarities
@@ -137,54 +230,91 @@ def calculate_detailed_semantic_match(resume_data, jd_data):
             jd_text = str(jd_data)
             jd_skills = []
         
-        # Overall semantic similarity
-        overall_similarity = calculate_semantic_match(resume_data, jd_data)
+        # Overall semantic similarity using Ollama
+        overall_similarity = calculate_semantic_match(resume_data, jd_data, use_ollama=True)
         
-        # Skills-specific similarity if available
+        # Skills-specific similarity
         skills_similarity = 0.0
         if resume_skills and jd_skills:
             resume_skills_text = ' '.join(resume_skills)
             jd_skills_text = ' '.join(jd_skills)
-            skills_similarity = calculate_semantic_match(resume_skills_text, jd_skills_text) if resume_skills_text and jd_skills_text else 0.0
+            skills_similarity = calculate_semantic_match(resume_skills_text, jd_skills_text, use_ollama=True) if resume_skills_text and jd_skills_text else 0.0
         
-        # Content sections similarity (if we can extract different sections)
-        sections_similarity = _calculate_sections_similarity(resume_text, jd_text)
+        # Get detailed analysis from Ollama
+        detailed_analysis = _get_ollama_detailed_analysis(resume_text, jd_text)
         
         return {
             'overall_similarity': overall_similarity,
             'skills_similarity': skills_similarity,
-            'sections_similarity': sections_similarity,
-            'weighted_score': (overall_similarity * 0.6) + (skills_similarity * 0.3) + (sections_similarity * 0.1)
+            'detailed_analysis': detailed_analysis,
+            'weighted_score': (overall_similarity * 0.7) + (skills_similarity * 0.3)
         }
     
     except Exception as e:
-        logging.error(f"Error calculating detailed semantic match: {e}")
+        logger.error(f"Error calculating detailed semantic match: {e}")
         return {
             'overall_similarity': 0.0,
             'skills_similarity': 0.0,
-            'sections_similarity': 0.0,
+            'detailed_analysis': "Analysis failed",
             'weighted_score': 0.0
         }
 
-def _calculate_sections_similarity(resume_text: str, jd_text: str) -> float:
+def _get_ollama_detailed_analysis(resume_text: str, jd_text: str) -> str:
     """
-    Calculate similarity between different sections of resume and job description.
+    Get detailed analysis of resume-job match using Ollama.
     
-    This is a simplified version - in practice, you might want to implement
-    more sophisticated section extraction and comparison.
+    Args:
+        resume_text: Resume text content
+        jd_text: Job description text content
+        
+    Returns:
+        Detailed analysis text
     """
     try:
-        # Simple approach: compare first and last parts of documents
-        resume_parts = resume_text.split('\n\n')
-        jd_parts = jd_text.split('\n\n')
+        if not _check_ollama_availability():
+            return "Detailed analysis unavailable - Ollama not accessible"
         
-        if len(resume_parts) < 2 or len(jd_parts) < 2:
-            return 0.0
+        prompt = f"""
+Provide a brief analysis of how well this resume matches the job description. 
+Focus on:
+1. Key strengths and alignments
+2. Potential gaps or missing skills
+3. Overall fit assessment
+
+RESUME:
+{resume_text[:1500]}...
+
+JOB DESCRIPTION:
+{jd_text[:1500]}...
+
+Keep the analysis concise (under 200 words).
+"""
         
-        # Compare intro sections
-        intro_similarity = calculate_semantic_match(resume_parts[0], jd_parts[0])
+        response = ollama.generate(
+            model='llama3.2',
+            prompt=prompt,
+            options={
+                'temperature': 0.3,
+                'num_predict': 200
+            }
+        )
         
-        return intro_similarity / 100.0  # Convert back to 0-1 scale
+        return response.get('response', 'Analysis unavailable')
     
-    except Exception:
-        return 0.0
+    except Exception as e:
+        logger.error(f"Error getting detailed analysis: {e}")
+        return f"Analysis error: {str(e)}"
+
+def get_available_ollama_models():
+    """
+    Get list of available Ollama models.
+    
+    Returns:
+        list: Available model names
+    """
+    try:
+        models = ollama.list()
+        return [model['name'] for model in models.get('models', [])]
+    except Exception as e:
+        logger.error(f"Error getting Ollama models: {e}")
+        return []
