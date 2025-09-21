@@ -1,6 +1,6 @@
 # Resume Relevance Checker - Innomatics Research Labs
 # Complete AI-Powered Resume Analysis System
-# Supports Ollama, Hugging Face, spaCy, and top AI models
+# Supports Hugging Face, spaCy, and top AI models
 
 # Core Web Framework Dependencies
 streamlit>=1.28.1
@@ -29,10 +29,6 @@ fuzzywuzzy>=0.18.0
 python-Levenshtein>=0.23.0
 nltk>=3.8.1
 
-# AI and LLM Integration - Top Models
-# Ollama for Local LLM (Llama 3, etc.)
-ollama>=0.5.4
-
 # Hugging Face Ecosystem - Complete Suite
 transformers>=4.36.0
 sentence-transformers>=2.2.2
@@ -53,6 +49,11 @@ spacy>=3.7.2
 evaluate>=0.4.0
 peft>=0.6.0
 bitsandbytes>=0.41.0
+
+# LangChain for Enhanced AI Capabilities
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-huggingface>=0.0.1
 
 # HTTP Requests and API Integration
 requests>=2.31.0

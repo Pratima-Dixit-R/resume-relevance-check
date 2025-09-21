@@ -1,4 +1,5 @@
 import logging
+import logging
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -37,7 +38,7 @@ except ImportError:
     SPACY_AVAILABLE = False
     logger.warning("❌ spaCy not available")
 
-# LangChain imports
+# LangChain imports for enhanced AI capabilities
 try:
     from langchain_huggingface import HuggingFacePipeline
     from langchain.prompts import PromptTemplate
@@ -90,26 +91,30 @@ def _get_huggingface_pipeline():
 def _get_sentence_transformer_model():
     """Get or initialize Sentence Transformer model."""
     global _sentence_model
-    if _sentence_model is None and SENTENCE_TRANSFORMERS_AVAILABLE and SentenceTransformer is not None:
+    if _sentence_model is None and SENTENCE_TRANSFORMERS_AVAILABLE:
         try:
             # Use a lightweight, fast model for production
             _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("✅ Sentence Transformer model loaded successfully")
+            logger.info("Sentence Transformer model loaded successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to load Sentence Transformer model: {e}")
+            logger.error(f"Failed to load Sentence Transformer model: {e}")
             _sentence_model = None
     return _sentence_model
 
 def _get_spacy_model():
     """Get or initialize spaCy model."""
     global _spacy_model
-    if _spacy_model is None and SPACY_AVAILABLE and spacy is not None:
+    if _spacy_model is None and SPACY_AVAILABLE:
         try:
             _spacy_model = spacy.load("en_core_web_sm")
-            logger.info("✅ spaCy model loaded successfully")
+            logger.info("spaCy model loaded successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to load spaCy model: {e}")
-            _spacy_model = None
+            logger.error(f"Failed to load spaCy model: {e}")
+            try:
+                # Fallback to smaller model
+                _spacy_model = spacy.load("en_core_web_sm")
+            except:
+                _spacy_model = None
     return _spacy_model
 
 def _clean_text(text: str) -> str:
@@ -125,26 +130,30 @@ def _clean_text(text: str) -> str:
     
     return text.lower()
 
-def _calculate_huggingface_similarity(resume_text: str, jd_text: str) -> float:
-    """Calculate similarity using Hugging Face models."""
+def _calculate_huggingface_llama_similarity(resume_text: str, jd_text: str) -> float:
+    """Calculate similarity using Hugging Face Llama 3 model."""
     try:
-        pipeline_model = _get_huggingface_pipeline()
+        pipeline_model = _get_llama_model()
         if pipeline_model is None:
             logger.warning("Hugging Face LLM not available, falling back to Sentence Transformers")
             return _calculate_transformer_similarity(resume_text, jd_text)
         
         # Create a focused prompt for resume-job matching
-        prompt = f"""Rate resume-job match 0.0-1.0:
-Resume: {resume_text[:500]}...
-Job: {jd_text[:500]}...
-Score:"""
+        prompt = f"""Analyze the match between this resume and job description. Rate similarity from 0.0 to 1.0.
+
+Resume: {resume_text[:800]}...
+
+Job Description: {jd_text[:800]}...
+
+Similarity score (0.0-1.0):"""
         
         # Generate response
         response = pipeline_model(
             prompt,
-            max_new_tokens=5,
+            max_new_tokens=10,
             num_return_sequences=1,
-            temperature=0.1
+            temperature=0.1,
+            do_sample=True
         )
         
         # Extract score from response
@@ -152,6 +161,7 @@ Score:"""
         score_text = generated_text.replace(prompt, "").strip()
         
         # Extract numerical score
+        import re
         score_match = re.search(r'(0\.[0-9]+|1\.0|0|1)', score_text)
         if score_match:
             score = float(score_match.group(1))
@@ -161,8 +171,88 @@ Score:"""
             return _calculate_transformer_similarity(resume_text, jd_text)
             
     except Exception as e:
-        logger.error(f"Hugging Face similarity calculation failed: {e}")
+        logger.error(f"Hugging Face LLM similarity calculation failed: {e}")
         return _calculate_transformer_similarity(resume_text, jd_text)
+
+def _calculate_langchain_huggingface_similarity(resume_text: str, jd_text: str) -> float:
+    """
+    Calculate semantic similarity using LangChain with Hugging Face integration.
+    Provides enhanced prompt engineering and response parsing.
+    """
+    try:
+        pipeline_model = _get_llama_model()
+        if pipeline_model is None or not LANGCHAIN_HF_AVAILABLE:
+            return _calculate_huggingface_llama_similarity(resume_text, jd_text)
+        
+        # Initialize LangChain Hugging Face LLM
+        llm = HuggingFacePipeline(pipeline=pipeline_model)
+        
+        # Create enhanced prompt template
+        prompt_template = PromptTemplate(
+            input_variables=["resume", "job_description"],
+            template="""
+You are an expert HR analyst specializing in resume-job description matching for Innomatics Research Labs.
+
+Analyze the semantic similarity between this resume and job description with focus on:
+
+1. TECHNICAL SKILLS ALIGNMENT (40% weight):
+   - Programming languages, frameworks, tools
+   - Domain-specific technologies
+   - Certifications and qualifications
+
+2. EXPERIENCE RELEVANCE (30% weight):
+   - Years of experience in relevant domains
+   - Project complexity and scope
+   - Leadership and team management
+
+3. DOMAIN EXPERTISE (20% weight):
+   - Industry knowledge
+   - Research background
+   - Academic qualifications
+
+4. ROLE RESPONSIBILITIES (10% weight):
+   - Job function alignment
+   - Career progression match
+   - Cultural fit indicators
+
+RESUME:
+{resume}
+
+JOB DESCRIPTION:
+{job_description}
+
+Provide ONLY a numerical similarity score between 0.0 and 1.0 (e.g., 0.75).
+No explanation, no text, just the number.
+"""
+        )
+        
+        # Create LLM chain
+        chain = LLMChain(llm=llm, prompt=prompt_template)
+        
+        # Process with limited text to avoid token limits
+        resume_excerpt = resume_text[:1000]
+        jd_excerpt = jd_text[:1000]
+        
+        # Execute chain
+        result = chain.run(
+            resume=resume_excerpt,
+            job_description=jd_excerpt
+        )
+        
+        # Parse result
+        import re
+        score_match = re.search(r'(0\.[0-9]+|1\.0|0|1)', result.strip())
+        if score_match:
+            score = float(score_match.group(1))
+            return min(max(score, 0.0), 1.0)
+        else:
+            logger.warning(f"Could not parse LangChain Hugging Face score: {result}")
+            return 0.5
+            
+    except Exception as e:
+        logger.error(f"Error in LangChain Hugging Face similarity calculation: {e}")
+        # Fallback to direct Hugging Face
+        return _calculate_huggingface_llama_similarity(resume_text, jd_text)
 
 def _calculate_transformer_similarity(resume_text: str, jd_text: str) -> float:
     """Calculate similarity using Sentence Transformers."""
@@ -245,27 +335,27 @@ def calculate_semantic_match(resume_data: Dict[str, Any], jd_data: Dict[str, Any
         
         # Try different backends in order of preference (Hugging Face first)
         if use_huggingface and HUGGINGFACE_LLM_AVAILABLE:
-            score = _calculate_huggingface_similarity(resume_text, jd_text)
-            logger.info(f"🤖 Hugging Face semantic similarity: {score:.3f}")
+            score = _calculate_huggingface_llama_similarity(resume_text, jd_text)
+            logger.info(f"Hugging Face LLM semantic similarity: {score:.3f}")
             return score * 100
         
         if SENTENCE_TRANSFORMERS_AVAILABLE:
             score = _calculate_transformer_similarity(resume_text, jd_text)
-            logger.info(f"🧠 Sentence Transformer semantic similarity: {score:.3f}")
+            logger.info(f"Sentence Transformer semantic similarity: {score:.3f}")
             return score * 100
         
         if SPACY_AVAILABLE:
             score = _calculate_spacy_similarity(resume_text, jd_text)
-            logger.info(f"📝 spaCy semantic similarity: {score:.3f}")
+            logger.info(f"spaCy semantic similarity: {score:.3f}")
             return score * 100
         
         # Fallback to TF-IDF
         score = _calculate_tfidf_similarity(resume_text, jd_text)
-        logger.info(f"📊 TF-IDF semantic similarity: {score:.3f}")
+        logger.info(f"TF-IDF semantic similarity: {score:.3f}")
         return score * 100
         
     except Exception as e:
-        logger.error(f"❌ Semantic matching failed: {e}")
+        logger.error(f"Semantic matching failed: {e}")
         return 0.0
 
 def calculate_detailed_semantic_match(resume_data: Dict[str, Any], jd_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -283,9 +373,11 @@ def calculate_detailed_semantic_match(resume_data: Dict[str, Any], jd_data: Dict
         
         backend_scores = {}
         
-        # Try all available backends (prioritize Hugging Face)
-        if HUGGINGFACE_LLM_AVAILABLE:
-            backend_scores['huggingface_llm'] = _calculate_huggingface_similarity(resume_text, jd_text)
+        # Try all available backends (prioritize Hugging Face LLM)
+        if LANGCHAIN_HF_AVAILABLE and HUGGINGFACE_LLM_AVAILABLE:
+            backend_scores['langchain_huggingface'] = _calculate_langchain_huggingface_similarity(resume_text, jd_text)
+        elif HUGGINGFACE_LLM_AVAILABLE:
+            backend_scores['huggingface_llm'] = _calculate_huggingface_llama_similarity(resume_text, jd_text)
         
         if SENTENCE_TRANSFORMERS_AVAILABLE:
             backend_scores['sentence_transformers'] = _calculate_transformer_similarity(resume_text, jd_text)
@@ -296,9 +388,10 @@ def calculate_detailed_semantic_match(resume_data: Dict[str, Any], jd_data: Dict
         # Always include TF-IDF as baseline
         backend_scores['tfidf'] = _calculate_tfidf_similarity(resume_text, jd_text)
         
-        # Calculate weighted average (prefer Hugging Face, then other AI models over TF-IDF)
+        # Calculate weighted average (prefer Hugging Face LLM, then other AI models over TF-IDF)
         weights = {
-            'huggingface_llm': 0.5,
+            'langchain_huggingface': 0.5,
+            'huggingface_llm': 0.4,
             'sentence_transformers': 0.3,
             'spacy': 0.2,
             'tfidf': 0.1
@@ -317,13 +410,15 @@ def calculate_detailed_semantic_match(resume_data: Dict[str, Any], jd_data: Dict
         
         # Generate detailed analysis
         analysis_parts = []
-        if 'huggingface_llm' in backend_scores:
-            analysis_parts.append(f"🤖 AI Analysis (Hugging Face): {backend_scores['huggingface_llm']:.1%}")
+        if 'langchain_huggingface' in backend_scores:
+            analysis_parts.append(f"Enhanced AI Analysis (LangChain+Hugging Face): {backend_scores['langchain_huggingface']:.1%}")
+        elif 'huggingface_llm' in backend_scores:
+            analysis_parts.append(f"AI Analysis (Hugging Face LLM): {backend_scores['huggingface_llm']:.1%}")
         if 'sentence_transformers' in backend_scores:
-            analysis_parts.append(f"🧠 Neural Embeddings: {backend_scores['sentence_transformers']:.1%}")
+            analysis_parts.append(f"Neural Embeddings: {backend_scores['sentence_transformers']:.1%}")
         if 'spacy' in backend_scores:
-            analysis_parts.append(f"📝 NLP Analysis: {backend_scores['spacy']:.1%}")
-        analysis_parts.append(f"📊 Statistical Analysis: {backend_scores['tfidf']:.1%}")
+            analysis_parts.append(f"NLP Analysis: {backend_scores['spacy']:.1%}")
+        analysis_parts.append(f"Statistical Analysis: {backend_scores['tfidf']:.1%}")
         
         detailed_analysis = "\n".join(analysis_parts)
         
@@ -334,7 +429,7 @@ def calculate_detailed_semantic_match(resume_data: Dict[str, Any], jd_data: Dict
         }
         
     except Exception as e:
-        logger.error(f"❌ Detailed semantic analysis failed: {e}")
+        logger.error(f"Detailed semantic analysis failed: {e}")
         return {
             'weighted_score': 0.0,
             'detailed_analysis': f'Analysis failed: {str(e)}',

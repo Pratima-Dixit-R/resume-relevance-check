@@ -1,3 +1,8 @@
+"""
+Resume Relevance Checker - Streamlit Cloud Version
+This is a simplified version optimized for Streamlit Cloud deployment.
+"""
+
 import streamlit as st
 import tempfile
 import os
@@ -7,6 +12,11 @@ from datetime import datetime
 import time
 from pathlib import Path
 import glob
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
@@ -52,7 +62,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Global variables
+# Initialize session state
 if 'jd_text' not in st.session_state:
     st.session_state.jd_text = None
 if 'resume_text' not in st.session_state:
@@ -60,90 +70,145 @@ if 'resume_text' not in st.session_state:
 if 'analysis_history' not in st.session_state:
     st.session_state.analysis_history = []
 
-def get_sample_data_paths():
-    """Get paths to sample resume and job description files."""
-    base_path = Path(__file__).parent.parent.parent
-    
-    # Sample resumes
-    resume_paths = {
-        "Sample Resume Collection": list(glob.glob(str(base_path / "data" / "data" / "sample_resumes" / "Resumes" / "*.pdf"))),
-        "Additional Resume Samples": list(glob.glob(str(base_path / "sample_resumes" / "*.txt")))
-    }
-    
-    # Sample job descriptions
-    jd_paths = {
-        "Sample Job Descriptions": list(glob.glob(str(base_path / "data" / "sample_jds" / "JD" / "*.pdf"))),
-        "Additional JD Samples": list(glob.glob(str(base_path / "sample_jds" / "*.txt")))
-    }
-    
-    return resume_paths, jd_paths
-
 def extract_text_from_file(uploaded_file):
-    """Extract text from uploaded file"""
+    """Extract text from uploaded file (simplified version)"""
     try:
-        from src.utils.text_extraction import extract_text
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_file.flush()
-            
-            try:
-                text = extract_text(tmp_file.name)
-                return text
-            finally:
+        # For PDF files
+        if uploaded_file.name.endswith('.pdf'):
+            import PyPDF2
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            return text
+        # For text files
+        elif uploaded_file.name.endswith('.txt'):
+            return uploaded_file.read().decode('utf-8')
+        # For DOCX files
+        elif uploaded_file.name.endswith('.docx'):
+            from docx import Document
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
+                tmp_file.write(uploaded_file.getvalue())
+                tmp_file.flush()
+                doc = Document(tmp_file.name)
+                text = ""
+                for paragraph in doc.paragraphs:
+                    text += paragraph.text + "\n"
                 os.unlink(tmp_file.name)
+                return text
+        else:
+            # Try to read as text
+            return uploaded_file.read().decode('utf-8')
     except Exception as e:
         st.error(f"Error extracting text: {e}")
         return None
 
-def load_sample_file(file_path):
-    """Load a sample file and return its content."""
+def calculate_hard_match(resume_data, jd_data):
+    """Calculate hard match score based on keyword matching"""
     try:
-        if file_path.endswith('.pdf'):
-            from src.utils.text_extraction import extract_text
-            return extract_text(file_path)
-        elif file_path.endswith('.txt'):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        else:
-            return None
-    except Exception as e:
-        st.error(f"Error loading file {file_path}: {e}")
-        return None
-
-def check_ai_status():
-    """Check AI backend status"""
-    try:
-        from src.scoring.semantic_match import HUGGINGFACE_LLM_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, SPACY_AVAILABLE
-        status_info = []
+        resume_text = resume_data.get('raw_text', '').lower()
+        jd_text = jd_data.get('raw_text', '').lower()
         
-        if HUGGINGFACE_LLM_AVAILABLE:
-            status_info.append("✅ Hugging Face LLM available")
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            status_info.append("✅ Sentence Transformers available")
-        if SPACY_AVAILABLE:
-            status_info.append("✅ spaCy available")
+        if not resume_text or not jd_text:
+            return 0.0
+        
+        # Simple keyword matching approach
+        # Extract potential keywords from JD (simplified)
+        jd_words = set(jd_text.split())
+        resume_words = set(resume_text.split())
+        
+        # Calculate overlap
+        common_words = len(jd_words.intersection(resume_words))
+        total_jd_words = len(jd_words)
+        
+        if total_jd_words == 0:
+            return 0.0
             
-        if status_info:
-            st.markdown(f'''
-            <div class="ai-status">
-                🟢 <strong>AI Status:</strong> Connected | {" | ".join(status_info)}
-            </div>
-            ''', unsafe_allow_html=True)
-            return True
-        else:
-            st.warning("⚠️ No AI backends available.")
-            return False
+        score = (common_words / total_jd_words) * 100
+        return min(score, 100.0)
+        
     except Exception as e:
-        st.error(f"❌ AI Status Error: {e}")
-        return False
+        logger.error(f"Hard match calculation failed: {e}")
+        return 0.0
+
+def calculate_semantic_match(resume_data, jd_data):
+    """Calculate semantic similarity using TF-IDF as fallback"""
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        resume_text = resume_data.get('raw_text', '')
+        jd_text = jd_data.get('raw_text', '')
+        
+        if not resume_text or not jd_text:
+            return 0.0
+        
+        # Clean texts
+        def _clean_text(text):
+            import re
+            if not text:
+                return ""
+            # Remove extra whitespace and normalize
+            text = re.sub(r'\s+', ' ', text.strip())
+            # Remove special characters but keep important punctuation
+            text = re.sub(r'[^\w\s\.,!?;:()-]', ' ', text)
+            return text.lower()
+        
+        resume_clean = _clean_text(resume_text)
+        jd_clean = _clean_text(jd_text)
+        
+        if not resume_clean or not jd_clean:
+            return 0.0
+        
+        # Create TF-IDF vectors
+        vectorizer = TfidfVectorizer(
+            stop_words='english',
+            ngram_range=(1, 2),
+            max_features=1000,
+            min_df=1
+        )
+        
+        tfidf_matrix = vectorizer.fit_transform([resume_clean, jd_clean])
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        
+        return max(0.0, min(100.0, float(similarity) * 100))
+        
+    except Exception as e:
+        logger.error(f"Semantic matching failed: {e}")
+        return 0.0
+
+def get_detailed_verdict(hard_match_score, semantic_match_score):
+    """Generate detailed verdict based on scores"""
+    combined_score = (hard_match_score + semantic_match_score) / 2
+    
+    if combined_score >= 80:
+        verdict = "High"
+        explanation = "✅ Excellent match! Your resume aligns well with the job requirements. Strongly recommended to apply."
+    elif combined_score >= 60:
+        verdict = "Medium"
+        explanation = "🟡 Good match with some gaps. Consider tailoring your resume more closely to the job description."
+    else:
+        verdict = "Low"
+        explanation = "🔴 Limited match. Significant gaps identified. Consider gaining more relevant experience or skills."
+    
+    return {
+        'combined_score': combined_score,
+        'verdict': verdict,
+        'explanation': explanation
+    }
 
 def main():
     # Main header
     st.markdown('<h1 class="main-header">🤖 Resume AI Analyzer</h1>', unsafe_allow_html=True)
     
-    # Check AI status
-    ai_available = check_ai_status()
+    # AI status
+    st.markdown(f'''
+    <div class="ai-status">
+        🟢 <strong>AI Status:</strong> Active | Using TF-IDF for semantic analysis
+    </div>
+    ''', unsafe_allow_html=True)
     
     # Sidebar
     st.sidebar.header("🚀 Navigation")
@@ -155,85 +220,24 @@ def main():
     
     # AI settings
     st.sidebar.header("🤖 AI Settings")
-    use_huggingface = st.sidebar.checkbox("🚀 Use Hugging Face AI", value=ai_available)
-    analysis_depth = st.sidebar.selectbox("Analysis Depth", ["Quick", "Standard", "Deep"], index=1)
+    analysis_depth = st.sidebar.selectbox("Analysis Depth", ["Quick", "Standard"], index=1)
     
     if page == "📋 Upload & Analyze":
-        upload_and_analyze_page(use_huggingface, analysis_depth)
+        upload_and_analyze_page(analysis_depth)
     elif page == "📊 Analytics":
         analytics_page()
     elif page == "📋 View Results":
         view_results_page()
 
-def upload_and_analyze_page(use_huggingface, analysis_depth):
-    """Upload and analysis page with AI integration and sample data"""
-    # Sample Data Section
-    st.markdown("### 🗂️ Quick Start with Sample Data")
-    
-    resume_paths, jd_paths = get_sample_data_paths()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**📄 Sample Resumes Available:**")
-        
-        # Show available sample resumes
-        total_resumes = sum(len(files) for files in resume_paths.values())
-        st.info(f"📊 {total_resumes} sample resumes ready for analysis")
-        
-        if st.button("🚀 Load Random Sample Resume", type="secondary"):
-            # Get random resume from all available samples
-            all_resumes = []
-            for category, files in resume_paths.items():
-                all_resumes.extend(files)
-            
-            if all_resumes:
-                import random
-                selected_resume = random.choice(all_resumes)
-                resume_text = load_sample_file(selected_resume)
-                
-                if resume_text:
-                    st.session_state.resume_text = resume_text
-                    st.session_state.resume_processed = True
-                    st.success(f"✅ Loaded: {os.path.basename(selected_resume)}")
-                    
-                    with st.expander("🔍 Preview"):
-                        st.text_area("Content", resume_text[:500] + "...", height=150)
-    
-    with col2:
-        st.markdown("**💼 Sample Job Descriptions Available:**")
-        
-        # Show available sample JDs
-        total_jds = sum(len(files) for files in jd_paths.values())
-        st.info(f"📊 {total_jds} sample job descriptions ready for analysis")
-        
-        if st.button("🚀 Load Random Sample JD", type="secondary"):
-            # Get random JD from all available samples
-            all_jds = []
-            for category, files in jd_paths.items():
-                all_jds.extend(files)
-            
-            if all_jds:
-                import random
-                selected_jd = random.choice(all_jds)
-                jd_text = load_sample_file(selected_jd)
-                
-                if jd_text:
-                    st.session_state.jd_text = jd_text
-                    st.session_state.jd_processed = True
-                    st.success(f"✅ Loaded: {os.path.basename(selected_jd)}")
-                    
-                    with st.expander("🔍 Preview"):
-                        st.text_area("Content", jd_text[:500] + "...", height=150)
-    
-    st.markdown("---")
-    st.markdown("### 📁 Upload Your Own Files")
+def upload_and_analyze_page(analysis_depth):
+    """Upload and analysis page"""
+    st.markdown("### 📁 Upload Your Files")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.header("📁 Job Description")
-        jd_file = st.file_uploader("Choose a job description file", type=["pdf", "docx"], key="jd")
+        jd_file = st.file_uploader("Choose a job description file", type=["pdf", "docx", "txt"], key="jd")
         
         if jd_file is not None:
             st.info(f"File: {jd_file.name} ({jd_file.size} bytes)")
@@ -250,7 +254,7 @@ def upload_and_analyze_page(use_huggingface, analysis_depth):
     
     with col2:
         st.header("📄 Resume")
-        resume_file = st.file_uploader("Choose a resume file", type=["pdf", "docx"], key="resume")
+        resume_file = st.file_uploader("Choose a resume file", type=["pdf", "docx", "txt"], key="resume")
         
         if resume_file is not None:
             st.info(f"File: {resume_file.name} ({resume_file.size} bytes)")
@@ -273,12 +277,12 @@ def upload_and_analyze_page(use_huggingface, analysis_depth):
         col1, col2, col3 = st.columns([2, 1, 2])
         with col2:
             if st.button("🚀 Start AI Analysis", type="primary"):
-                perform_analysis(use_huggingface, analysis_depth)
+                perform_analysis(analysis_depth)
     else:
-        st.info("📝 Please upload/load files and process both resume and job description to start analysis.")
+        st.info("📝 Please upload and process both resume and job description to start analysis.")
 
-def perform_analysis(use_huggingface, analysis_depth):
-    """Perform analysis with AI"""
+def perform_analysis(analysis_depth):
+    """Perform analysis"""
     progress_bar = st.progress(0)
     status_text = st.empty()
     
@@ -286,11 +290,6 @@ def perform_analysis(use_huggingface, analysis_depth):
         # Initialize
         status_text.text('🔄 Initializing analysis...')
         progress_bar.progress(20)
-        
-        # Import modules
-        from src.scoring.hard_match import calculate_hard_match
-        from src.scoring.semantic_match import calculate_semantic_match, calculate_detailed_semantic_match
-        from src.scoring.verdict import get_detailed_verdict
         
         # Prepare data
         status_text.text('📊 Preparing data...')
@@ -304,14 +303,7 @@ def perform_analysis(use_huggingface, analysis_depth):
         progress_bar.progress(60)
         
         hard_match_score = calculate_hard_match(resume_data, jd_data)
-        
-        if analysis_depth == "Deep":
-            semantic_results = calculate_detailed_semantic_match(resume_data, jd_data)
-            semantic_match_score = semantic_results.get('weighted_score', 0)
-            detailed_analysis = semantic_results.get('detailed_analysis', '')
-        else:
-            semantic_match_score = calculate_semantic_match(resume_data, jd_data, use_huggingface)
-            detailed_analysis = "Standard analysis completed"
+        semantic_match_score = calculate_semantic_match(resume_data, jd_data)
         
         progress_bar.progress(80)
         status_text.text('🏆 Generating verdict...')
@@ -322,7 +314,7 @@ def perform_analysis(use_huggingface, analysis_depth):
         status_text.text('✅ Analysis complete!')
         
         # Display results
-        display_results(hard_match_score, semantic_match_score, verdict_info, detailed_analysis)
+        display_results(hard_match_score, semantic_match_score, verdict_info, "")
         
         # Store in history
         st.session_state.analysis_history.append({
@@ -366,10 +358,6 @@ def display_results(hard_match_score, semantic_match_score, verdict_info, detail
     # Detailed explanation
     st.markdown("### 📝 Analysis Summary")
     st.info(verdict_info['explanation'])
-    
-    if detailed_analysis and detailed_analysis != "Standard analysis completed":
-        st.markdown("### 🤖 AI Analysis")
-        st.write(detailed_analysis)
     
     # Visualization
     st.markdown("### 📊 Score Breakdown")
