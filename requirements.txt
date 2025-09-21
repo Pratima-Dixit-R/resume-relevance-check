@@ -43,8 +43,8 @@ python-dotenv==1.0.0
 requests==2.31.0
 aiofiles==23.2.1
 
-# Path and import utilities
-pathlib2>=2.3.0; python_version < \"3.4\"
+# Path and import utilities - removed for Python 3.13 compatibility
+# pathlib2>=2.3.0; python_version < "3.4"
 
 # Optional: For better performance
 cython>=0.29.0
