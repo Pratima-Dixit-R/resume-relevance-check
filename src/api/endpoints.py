@@ -9,12 +9,12 @@ sys.path.insert(0, str(project_root / "src"))
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import List, Optional
-from parsing.resume_parser import ResumeParser
-from parsing.jd_parser import JDParser
-from scoring.hard_match import calculate_hard_match
-from scoring.semantic_match import calculate_semantic_match
-from scoring.verdict import get_verdict
-from storage.database import store_evaluation_results
+from src.parsing.resume_parser import ResumeParser
+from src.parsing.jd_parser import JDParser
+from src.scoring.hard_match import calculate_hard_match
+from src.scoring.semantic_match import calculate_semantic_match
+from src.scoring.verdict import get_verdict
+from src.storage.database import store_evaluation_results
 
 router = APIRouter()
 

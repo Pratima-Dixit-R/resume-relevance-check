@@ -1,0 +1,59 @@
+SENIOR AI/ML ENGINEER
+Innomatics Lab - Technology Innovation Division
+
+POSITION OVERVIEW
+We are seeking a highly skilled Senior AI/ML Engineer to join our cutting-edge technology team. The ideal candidate will lead the development of AI-powered applications, implement machine learning models, and architect scalable solutions for document processing and analysis systems.
+
+KEY RESPONSIBILITIES
+• Design and implement AI/ML solutions using modern frameworks (TensorFlow, PyTorch, Transformers)
+• Develop semantic analysis systems using LLM models (Ollama, GPT, Llama)
+• Build and maintain microservices architecture with FastAPI and Python
+• Create interactive web applications using Streamlit and modern UI frameworks
+• Implement document processing pipelines for PDF/DOCX parsing and analysis
+• Optimize model performance and ensure scalability for production environments
+• Collaborate with cross-functional teams in agile development cycles
+• Mentor junior developers and contribute to technical documentation
+
+REQUIRED QUALIFICATIONS
+• Bachelor's or Master's degree in Computer Science, AI/ML, or related field
+• 5+ years of experience in software engineering with 3+ years in AI/ML
+• Proficiency in Python, JavaScript, and modern web frameworks
+• Experience with AI/ML libraries: TensorFlow, PyTorch, scikit-learn, Hugging Face
+• Strong knowledge of NLP techniques and semantic analysis
+• Experience with cloud platforms (AWS, GCP, Azure) and containerization
+• Familiarity with microservices architecture and API development
+• Proficiency in database systems (PostgreSQL, MongoDB, Redis)
+• Experience with version control (Git) and CI/CD pipelines
+
+PREFERRED QUALIFICATIONS
+• Experience with Large Language Models (LLM) and prompt engineering
+• Knowledge of Ollama, GPT, or other local LLM implementations
+• Experience with document processing and text extraction
+• Familiarity with spaCy, NLTK, or other NLP libraries
+• Experience with real-time data processing and analytics
+• Knowledge of containerization with Docker and Kubernetes
+• Experience with automated testing and quality assurance
+• Previous work in recruitment technology or HR analytics
+
+TECHNICAL STACK
+• Languages: Python, JavaScript, TypeScript, SQL
+• AI/ML: Ollama, Transformers, TensorFlow, PyTorch, scikit-learn
+• Frameworks: FastAPI, Streamlit, React, Node.js
+• Databases: PostgreSQL, MongoDB, Redis
+• Cloud: AWS, Docker, Kubernetes
+• Tools: Git, JIRA, pytest, CI/CD pipelines
+
+WHAT WE OFFER
+• Competitive salary and equity package
+• Comprehensive health and dental benefits
+• Flexible work arrangements and remote options
+• Professional development and conference attendance
+• State-of-the-art technology and computing resources
+• Collaborative and innovative work environment
+• Opportunity to work on cutting-edge AI projects
+
+COMPANY CULTURE
+Innomatics Lab is at the forefront of AI innovation, developing solutions that transform how businesses process and analyze information. We value creativity, technical excellence, and collaborative problem-solving. Join our team of passionate engineers building the future of AI-powered applications.
+
+APPLICATION PROCESS
+Please submit your resume, cover letter, and portfolio showcasing relevant AI/ML projects. Include examples of document processing systems, semantic analysis implementations, or LLM integration work.

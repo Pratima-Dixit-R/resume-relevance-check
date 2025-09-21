@@ -5,6 +5,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import time
+from pathlib import Path
+import glob
 
 # Page configuration
 st.set_page_config(
@@ -40,6 +42,13 @@ st.markdown("""
         padding: 0.8rem;
         margin: 1rem 0;
     }
+    .sample-data-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +60,54 @@ if 'resume_text' not in st.session_state:
 if 'analysis_history' not in st.session_state:
     st.session_state.analysis_history = []
 
+def get_sample_data_paths():
+    """Get paths to sample resume and job description files."""
+    base_path = Path(__file__).parent.parent.parent
+    
+    # Sample resumes
+    resume_paths = {
+        "Sample Resume Collection": list(glob.glob(str(base_path / "data" / "data" / "sample_resumes" / "Resumes" / "*.pdf"))),
+        "Additional Resume Samples": list(glob.glob(str(base_path / "sample_resumes" / "*.txt")))
+    }
+    
+    # Sample job descriptions
+    jd_paths = {
+        "Sample Job Descriptions": list(glob.glob(str(base_path / "data" / "sample_jds" / "JD" / "*.pdf"))),
+        "Additional JD Samples": list(glob.glob(str(base_path / "sample_jds" / "*.txt")))
+    }
+    
+    return resume_paths, jd_paths
+
 def extract_text_from_file(uploaded_file):
+    """Extract text from uploaded file"""
+    try:
+        from src.utils.text_extraction import extract_text
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_file.flush()
+            
+            try:
+                text = extract_text(tmp_file.name)
+                return text
+            finally:
+                os.unlink(tmp_file.name)
+    except Exception as e:
+        st.error(f"Error extracting text: {e}")
+        return None
+    """Load a sample file and return its content."""
+    try:
+        if file_path.endswith('.pdf'):
+            from src.utils.text_extraction import extract_text
+            return extract_text(file_path)
+        elif file_path.endswith('.txt'):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Error loading file {file_path}: {e}")
+        return None
     """Extract text from uploaded file"""
     try:
         from src.utils.text_extraction import extract_text
@@ -116,7 +172,69 @@ def main():
         view_results_page()
 
 def upload_and_analyze_page(use_ollama, analysis_depth):
-    """Upload and analysis page with Ollama integration"""
+    """Upload and analysis page with Ollama integration and sample data"""
+    # Sample Data Section
+    st.markdown("### 🗂️ Quick Start with Sample Data")
+    
+    resume_paths, jd_paths = get_sample_data_paths()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**📄 Sample Resumes Available:**")
+        
+        # Show available sample resumes
+        total_resumes = sum(len(files) for files in resume_paths.values())
+        st.info(f"📊 {total_resumes} sample resumes ready for analysis")
+        
+        if st.button("🚀 Load Random Sample Resume", type="secondary"):
+            # Get random resume from all available samples
+            all_resumes = []
+            for category, files in resume_paths.items():
+                all_resumes.extend(files)
+            
+            if all_resumes:
+                import random
+                selected_resume = random.choice(all_resumes)
+                resume_text = load_sample_file(selected_resume)
+                
+                if resume_text:
+                    st.session_state.resume_text = resume_text
+                    st.session_state.resume_processed = True
+                    st.success(f"✅ Loaded: {os.path.basename(selected_resume)}")
+                    
+                    with st.expander("🔍 Preview"):
+                        st.text_area("Content", resume_text[:500] + "...", height=150)
+    
+    with col2:
+        st.markdown("**💼 Sample Job Descriptions Available:**")
+        
+        # Show available sample JDs
+        total_jds = sum(len(files) for files in jd_paths.values())
+        st.info(f"📊 {total_jds} sample job descriptions ready for analysis")
+        
+        if st.button("🚀 Load Random Sample JD", type="secondary"):
+            # Get random JD from all available samples
+            all_jds = []
+            for category, files in jd_paths.items():
+                all_jds.extend(files)
+            
+            if all_jds:
+                import random
+                selected_jd = random.choice(all_jds)
+                jd_text = load_sample_file(selected_jd)
+                
+                if jd_text:
+                    st.session_state.jd_text = jd_text
+                    st.session_state.jd_processed = True
+                    st.success(f"✅ Loaded: {os.path.basename(selected_jd)}")
+                    
+                    with st.expander("🔍 Preview"):
+                        st.text_area("Content", jd_text[:500] + "...", height=150)
+    
+    st.markdown("---")
+    st.markdown("### 📁 Upload Your Own Files")
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -163,7 +281,7 @@ def upload_and_analyze_page(use_ollama, analysis_depth):
             if st.button("🚀 Start Ollama Analysis", type="primary"):
                 perform_analysis(use_ollama, analysis_depth)
     else:
-        st.info("📝 Please upload and process both files to start analysis.")
+        st.info("📝 Please upload/load files and process both resume and job description to start analysis.")
 
 def perform_analysis(use_ollama, analysis_depth):
     """Perform analysis with Ollama"""

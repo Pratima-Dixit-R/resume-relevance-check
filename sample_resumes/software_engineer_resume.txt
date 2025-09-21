@@ -1,0 +1,87 @@
+JOHN SMITH
+Software Engineer
+Email: john.smith@email.com | Phone: (555) 123-4567
+LinkedIn: linkedin.com/in/johnsmith | GitHub: github.com/johnsmith
+
+PROFESSIONAL SUMMARY
+Experienced Full-Stack Software Engineer with 5+ years developing scalable web applications using Python, JavaScript, and modern frameworks. Proven track record in AI/ML integration, microservices architecture, and agile development methodologies.
+
+TECHNICAL SKILLS
+• Programming Languages: Python, JavaScript, TypeScript, Java, SQL
+• Frameworks: FastAPI, Django, React, Node.js, Vue.js
+• AI/ML: TensorFlow, PyTorch, scikit-learn, Ollama, Transformers
+• Databases: PostgreSQL, MongoDB, Redis
+• Cloud: AWS, Docker, Kubernetes, CI/CD
+• Tools: Git, JIRA, Pytest, Jest
+
+WORK EXPERIENCE
+
+Senior Software Engineer | TechCorp Inc. | 2021 - Present
+• Developed AI-powered resume analysis system using Python, FastAPI, and ML models
+• Implemented microservices architecture serving 10K+ daily users
+• Led team of 4 developers in agile sprints, increasing delivery speed by 40%
+• Integrated Ollama and Hugging Face models for semantic text analysis
+
+Software Engineer | InnovateSoft | 2019 - 2021
+• Built full-stack web applications using React and Django
+• Optimized database queries reducing response time by 60%
+• Implemented automated testing suite with 95% code coverage
+• Collaborated with product team on user experience improvements
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Technology, 2018
+GPA: 3.8/4.0
+
+PROJECTS
+• Resume Relevance Checker: AI-powered job matching system using Ollama LLM
+• Document Processing Pipeline: Automated PDF/DOCX parsing with spaCy NLP
+• Real-time Analytics Dashboard: Streamlit app with interactive visualizations
+
+CERTIFICATIONS
+• AWS Certified Solutions Architect
+• Google Cloud Professional Data Engineer
+• Certified Scrum Master (CSM)JOHN SMITH
+Software Engineer
+Email: john.smith@email.com | Phone: (555) 123-4567
+LinkedIn: linkedin.com/in/johnsmith | GitHub: github.com/johnsmith
+
+PROFESSIONAL SUMMARY
+Experienced Full-Stack Software Engineer with 5+ years developing scalable web applications using Python, JavaScript, and modern frameworks. Proven track record in AI/ML integration, microservices architecture, and agile development methodologies.
+
+TECHNICAL SKILLS
+• Programming Languages: Python, JavaScript, TypeScript, Java, SQL
+• Frameworks: FastAPI, Django, React, Node.js, Vue.js
+• AI/ML: TensorFlow, PyTorch, scikit-learn, Ollama, Transformers
+• Databases: PostgreSQL, MongoDB, Redis
+• Cloud: AWS, Docker, Kubernetes, CI/CD
+• Tools: Git, JIRA, Pytest, Jest
+
+WORK EXPERIENCE
+
+Senior Software Engineer | TechCorp Inc. | 2021 - Present
+• Developed AI-powered resume analysis system using Python, FastAPI, and ML models
+• Implemented microservices architecture serving 10K+ daily users
+• Led team of 4 developers in agile sprints, increasing delivery speed by 40%
+• Integrated Ollama and Hugging Face models for semantic text analysis
+
+Software Engineer | InnovateSoft | 2019 - 2021
+• Built full-stack web applications using React and Django
+• Optimized database queries reducing response time by 60%
+• Implemented automated testing suite with 95% code coverage
+• Collaborated with product team on user experience improvements
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Technology, 2018
+GPA: 3.8/4.0
+
+PROJECTS
+• Resume Relevance Checker: AI-powered job matching system using Ollama LLM
+• Document Processing Pipeline: Automated PDF/DOCX parsing with spaCy NLP
+• Real-time Analytics Dashboard: Streamlit app with interactive visualizations
+
+CERTIFICATIONS
+• AWS Certified Solutions Architect
+• Google Cloud Professional Data Engineer
+• Certified Scrum Master (CSM)

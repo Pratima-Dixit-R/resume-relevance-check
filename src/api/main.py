@@ -9,7 +9,7 @@ sys.path.insert(0, str(project_root / "src"))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.endpoints import router
+from src.api.endpoints import router
 
 # Create FastAPI application with metadata
 app = FastAPI(
