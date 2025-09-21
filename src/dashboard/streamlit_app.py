@@ -387,7 +387,7 @@ def view_results_page():
         
         if evaluations:
             # Summary stats
-            scores = [eval.relevance_score for eval in evaluations]
+            scores = [int(eval.relevance_score) for eval in evaluations]  # Ensure scores are integers
             avg_score = sum(scores) / len(scores)
             
             col1, col2, col3 = st.columns(3)
@@ -408,7 +408,7 @@ def view_results_page():
                         st.write(f"**Score:** {eval.relevance_score}%")
                         st.write(f"**Verdict:** {eval.verdict}")
                     with col2:
-                        if eval.missing_elements:
+                        if eval.missing_elements and str(eval.missing_elements).strip():  # Safe string check
                             st.write(f"**Notes:** {eval.missing_elements}")
                         
                         # Action buttons

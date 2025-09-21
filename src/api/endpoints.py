@@ -1,17 +1,27 @@
+import sys
+import os
+from pathlib import Path
+
+# Add project paths
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from typing import List
-from src.parsing.resume_parser import ResumeParser
-from src.parsing.jd_parser import JDParser
-from src.scoring.hard_match import calculate_hard_match
-from src.scoring.semantic_match import calculate_semantic_match
-from src.scoring.verdict import get_verdict
-from src.storage.database import store_evaluation_results
+from typing import List, Optional
+from parsing.resume_parser import ResumeParser
+from parsing.jd_parser import JDParser
+from scoring.hard_match import calculate_hard_match
+from scoring.semantic_match import calculate_semantic_match
+from scoring.verdict import get_verdict
+from storage.database import store_evaluation_results
 
 router = APIRouter()
 
 @router.post("/upload_resume/")
 async def upload_resume(file: UploadFile = File(...)):
-    if not file.filename.endswith(('.pdf', '.docx')):
+    filename: Optional[str] = file.filename
+    if not filename or not filename.endswith(('.pdf', '.docx')):
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDF and DOCX files are accepted.")
     
     resume_parser = ResumeParser()
@@ -21,7 +31,8 @@ async def upload_resume(file: UploadFile = File(...)):
 
 @router.post("/upload_jd/")
 async def upload_jd(file: UploadFile = File(...)):
-    if not file.filename.endswith(('.pdf', '.docx')):
+    filename: Optional[str] = file.filename
+    if not filename or not filename.endswith(('.pdf', '.docx')):
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDF and DOCX files are accepted.")
     
     jd_parser = JDParser()
