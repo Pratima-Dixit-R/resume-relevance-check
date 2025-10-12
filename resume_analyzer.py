@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Page configuration
 st.set_page_config(
     page_title="🤖 Resume AI Analyzer",
-    page_icon="📄",
+    page_icon="static/favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -29,15 +29,44 @@ st.set_page_config(
 # Add PWA manifest and mobile meta tags
 st.markdown("""
 <!-- PWA manifest -->
-<link rel="manifest" href="/static/manifest.json">
+<link rel="manifest" href="static/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Resume AI Analyzer">
 <meta name="theme-color" content="#4ECDC4">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/service-worker.js')
+      .then(function(registration) {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      })
+      .catch(function(err) {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+  });
+}
+</script>
 """, unsafe_allow_html=True)
 
-# Enhanced responsive CSS
+# Enhanced responsive CSS with mobile app-like features
 st.markdown("""
 <style>
+    /* Mobile app-like styling */
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        overscroll-behavior: none;
+    }
+    
     /* Responsive design for all devices */
     @media (max-width: 768px) {
         .main-header {
@@ -46,12 +75,21 @@ st.markdown("""
         .stButton>button {
             width: 100% !important;
             margin-bottom: 10px !important;
+            padding: 15px !important;
+            font-size: 1.1rem !important;
         }
         .stSidebar {
             width: 100% !important;
         }
         .stDataFrame {
             font-size: 0.8rem !important;
+        }
+        /* Mobile-specific styling */
+        .stApp {
+            padding: 10px !important;
+        }
+        .block-container {
+            padding: 10px !important;
         }
     }
     
@@ -65,6 +103,10 @@ st.markdown("""
         .stMetric {
             font-size: 0.9rem !important;
         }
+        /* Compact mobile view */
+        .stExpander {
+            margin-bottom: 5px !important;
+        }
     }
     
     .main-header {
@@ -75,6 +117,7 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 2rem;
+        -webkit-text-stroke: 0.5px rgba(0,0,0,0.1);
     }
     .metric-card {
         background-color: #f0f2f6;
@@ -82,6 +125,7 @@ st.markdown("""
         border-radius: 10px;
         margin: 0.5rem 0;
         border-left: 4px solid #4ECDC4;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .ai-status {
         background-color: #000000;
@@ -91,6 +135,7 @@ st.markdown("""
         padding: 0.8rem;
         margin: 1rem 0;
         font-weight: bold;
+        text-align: center;
     }
     .sample-data-card {
         background-color: #f8f9fa;
@@ -104,6 +149,15 @@ st.markdown("""
     * {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Smooth animations for app-like feel */
+    .stButton>button {
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 </style>
 """, unsafe_allow_html=True)
