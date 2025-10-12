@@ -88,11 +88,11 @@ def create_ngrok_tunnel():
         
         # Create tunnel for Streamlit (port 8501)
         print("🔗 Creating HTTPS tunnel for Streamlit frontend...")
-        streamlit_tunnel = ngrok.connect(8501, "http", bind_tls=True)
+        streamlit_tunnel = ngrok.connect(addr="8501", proto="http", bind_tls=True)
         
         # Create tunnel for FastAPI (port 8000)
         print("🔗 Creating HTTPS tunnel for FastAPI backend...")
-        fastapi_tunnel = ngrok.connect(8000, "http", bind_tls=True)
+        fastapi_tunnel = ngrok.connect(addr="8000", proto="http", bind_tls=True)
         
         return streamlit_tunnel, fastapi_tunnel
     except Exception as e:
