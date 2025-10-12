@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resume AI Analyzer</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #4ECDC4, #45B7D1);
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .redirect-text {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        .button {
+            background: #4ECDC4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background: #45B7D1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📄</div>
+        <div class="title">Resume AI Analyzer</div>
+        <div class="redirect-text">Redirecting to the application...</div>
+        <button class="button" onclick="openApp()">Open App</button>
+    </div>
+
+    <script>
+        // Redirect to the hosted app after a short delay
+        setTimeout(function() {
+            window.location.href = 'https://resume-relevance-check.streamlit.app';
+        }, 3000);
+
+        function openApp() {
+            window.location.href = 'https://resume-relevance-check.streamlit.app';
+        }
+    </script>
+</body>
+</html>

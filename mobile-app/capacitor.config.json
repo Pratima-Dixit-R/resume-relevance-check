@@ -1,0 +1,13 @@
+{
+  "appId": "com.resumeaianalyzer.app",
+  "appName": "Resume AI Analyzer",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://resume-relevance-check.streamlit.app",
+    "allowNavigation": [
+      "resume-relevance-check.streamlit.app",
+      "www.resumeaianalyzer.in"
+    ]
+  }
+}
