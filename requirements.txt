@@ -77,12 +77,16 @@ click>=8.1.0
 typing-extensions>=4.8.0
 
 # Security and Authentication
+PyJWT>=2.8.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 
 # Monitoring and Logging
 loguru>=0.7.0
 prometheus-client>=0.17.0
+
+# Tunneling and Public Access
+pyngrok>=7.0.0
 
 # Optional: For advanced model fine-tuning
 # apex>=0.1  # Uncomment if using NVIDIA GPUs

@@ -44,3 +44,6 @@ aiofiles>=23.2.1
 
 # Windows-specific optimizations
 colorama>=0.4.6
+
+# JWT Authentication
+PyJWT>=2.8.0

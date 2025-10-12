@@ -1,0 +1,5 @@
+[33m23fc012[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Finalize deployment files for Streamlit Cloud
+[33m94b3728[m Add deployment verification and fix scripts
+[33mb2e6b5e[m Complete Resume Relevance Checker with AI integration - Removed Ollama, added Hugging Face backend, optimized for Streamlit Cloud deployment
+[33meaf5080[m \ Launch Complete Resume Relevance Checker for Innomatics Research Labs
+[33m71411dd[m  Integrate Ollama AI with Resume Relevance Check System

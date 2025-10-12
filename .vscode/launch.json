@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "FastAPI Backend",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [
@@ -23,7 +23,7 @@
     },
     {
       "name": "Streamlit Dashboard",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "module": "streamlit",
       "args": [
@@ -40,9 +40,9 @@
     },
     {
       "name": "Run Both Services",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/run_both_services.py",
+      "program": "${workspaceFolder}/unified_launcher.py",
       "cwd": "${workspaceFolder}",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"

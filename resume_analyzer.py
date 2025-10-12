@@ -46,11 +46,13 @@ st.markdown("""
         border-left: 4px solid #4ECDC4;
     }
     .ai-status {
-        background-color: #e8f5e8;
+        background-color: #000000;
+        color: #ffffff;
         border: 1px solid #4caf50;
         border-radius: 8px;
         padding: 0.8rem;
         margin: 1rem 0;
+        font-weight: bold;
     }
     .sample-data-card {
         background-color: #f8f9fa;
@@ -110,7 +112,7 @@ def calculate_hard_match(resume_data, jd_data):
         jd_text = jd_data.get('raw_text', '').lower()
         
         if not resume_text or not jd_text:
-            return 0.0
+            return 0.0, []
         
         # Simple keyword matching approach
         # Extract potential keywords from JD (simplified)
@@ -118,18 +120,19 @@ def calculate_hard_match(resume_data, jd_data):
         resume_words = set(resume_text.split())
         
         # Calculate overlap
-        common_words = len(jd_words.intersection(resume_words))
+        common_words = jd_words.intersection(resume_words)
+        missing_words = jd_words - resume_words
         total_jd_words = len(jd_words)
         
         if total_jd_words == 0:
-            return 0.0
+            return 0.0, []
             
-        score = (common_words / total_jd_words) * 100
-        return min(score, 100.0)
+        score = (len(common_words) / total_jd_words) * 100
+        return min(score, 100.0), list(missing_words)
         
     except Exception as e:
         logger.error(f"Hard match calculation failed: {e}")
-        return 0.0
+        return 0.0, []
 
 def calculate_semantic_match(resume_data, jd_data):
     """Calculate semantic similarity using TF-IDF as fallback"""
@@ -179,24 +182,103 @@ def calculate_semantic_match(resume_data, jd_data):
         logger.error(f"Semantic matching failed: {e}")
         return 0.0
 
-def get_detailed_verdict(hard_match_score, semantic_match_score):
+def extract_key_sections(text):
+    """Extract key sections from resume or JD text"""
+    sections = {
+        'experience': [],
+        'skills': [],
+        'education': [],
+        'projects': []
+    }
+    
+    # Simple section extraction based on common headers
+    lines = text.split('\n')
+    current_section = None
+    
+    experience_keywords = ['experience', 'work', 'employment', 'professional']
+    skills_keywords = ['skills', 'technologies', 'tools', 'competencies']
+    education_keywords = ['education', 'academic', 'university', 'degree']
+    projects_keywords = ['projects', 'portfolio', 'work samples']
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        
+        # Detect section headers
+        if any(keyword in line_lower for keyword in experience_keywords):
+            current_section = 'experience'
+        elif any(keyword in line_lower for keyword in skills_keywords):
+            current_section = 'skills'
+        elif any(keyword in line_lower for keyword in education_keywords):
+            current_section = 'education'
+        elif any(keyword in line_lower for keyword in projects_keywords):
+            current_section = 'projects'
+        
+        # Add content to current section
+        if current_section and line.strip() and not any(keyword in line_lower for keyword in 
+            experience_keywords + skills_keywords + education_keywords + projects_keywords):
+            sections[current_section].append(line.strip())
+    
+    return sections
+
+def calculate_section_scores(resume_sections, jd_sections):
+    """Calculate scores for each section"""
+    section_scores = {}
+    
+    for section in ['experience', 'skills', 'education', 'projects']:
+        resume_text = ' '.join(resume_sections.get(section, []))
+        jd_text = ' '.join(jd_sections.get(section, []))
+        
+        if not jd_text:
+            section_scores[section] = 100.0  # No requirements, full score
+            continue
+        
+        if not resume_text:
+            section_scores[section] = 0.0  # No content, no score
+            continue
+        
+        # Calculate similarity for this section
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.metrics.pairwise import cosine_similarity
+            
+            vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 1))
+            tfidf_matrix = vectorizer.fit_transform([resume_text.lower(), jd_text.lower()])
+            similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+            section_scores[section] = max(0.0, min(100.0, float(similarity) * 100))
+        except:
+            section_scores[section] = 0.0
+    
+    return section_scores
+
+def get_detailed_verdict(hard_match_score, semantic_match_score, missing_keywords=None):
     """Generate detailed verdict based on scores"""
     combined_score = (hard_match_score + semantic_match_score) / 2
     
     if combined_score >= 80:
         verdict = "High"
         explanation = "✅ Excellent match! Your resume aligns well with the job requirements. Strongly recommended to apply."
+        recommendation = "Your resume is well-aligned with this position. Consider highlighting your most relevant achievements."
     elif combined_score >= 60:
         verdict = "Medium"
         explanation = "🟡 Good match with some gaps. Consider tailoring your resume more closely to the job description."
+        recommendation = "Focus on strengthening areas where keywords are missing and emphasize transferable skills."
     else:
         verdict = "Low"
         explanation = "🔴 Limited match. Significant gaps identified. Consider gaining more relevant experience or skills."
+        recommendation = "Consider gaining additional relevant experience or skills. Tailor your resume to better match the job requirements."
+    
+    # Generate keyword gap analysis
+    keyword_analysis = ""
+    if missing_keywords and len(missing_keywords) > 0:
+        top_missing = missing_keywords[:10]  # Top 10 missing keywords
+        keyword_analysis = f"**Key Missing Keywords:** {', '.join(top_missing)}"
     
     return {
         'combined_score': combined_score,
         'verdict': verdict,
-        'explanation': explanation
+        'explanation': explanation,
+        'recommendation': recommendation,
+        'keyword_analysis': keyword_analysis
     }
 
 def main():
@@ -220,7 +302,15 @@ def main():
     
     # AI settings
     st.sidebar.header("🤖 AI Settings")
-    analysis_depth = st.sidebar.selectbox("Analysis Depth", ["Quick", "Standard"], index=1)
+    analysis_depth = st.sidebar.selectbox("Analysis Depth", ["Quick", "Standard", "Deep"], index=1)
+    
+    # Advanced AI settings
+    with st.sidebar.expander("🔬 Advanced Analysis"):
+        st.markdown("### Deep Analysis Settings")
+        enable_keyword_analysis = st.checkbox("Enable Keyword Gap Analysis", value=True)
+        enable_skill_matching = st.checkbox("Enable Skill Matching", value=True)
+        enable_experience_scoring = st.checkbox("Enable Experience Scoring", value=True)
+        min_keyword_match = st.slider("Minimum Keyword Match Threshold", 0, 100, 70)
     
     if page == "📋 Upload & Analyze":
         upload_and_analyze_page(analysis_depth)
@@ -298,17 +388,37 @@ def perform_analysis(analysis_depth):
         resume_data = {"raw_text": st.session_state.resume_text}
         jd_data = {"raw_text": st.session_state.jd_text}
         
+        # Initialize section variables
+        resume_sections = {}
+        jd_sections = {}
+        section_scores = {}
+        
+        # Extract sections for deep analysis
+        if analysis_depth == "Deep":
+            status_text.text('🔍 Extracting sections...')
+            resume_sections = extract_key_sections(st.session_state.resume_text)
+            jd_sections = extract_key_sections(st.session_state.jd_text)
+        
         # Calculate scores
         status_text.text('🧮 Calculating scores...')
         progress_bar.progress(60)
         
-        hard_match_score = calculate_hard_match(resume_data, jd_data)
+        hard_match_score, missing_keywords = calculate_hard_match(resume_data, jd_data)
         semantic_match_score = calculate_semantic_match(resume_data, jd_data)
+        
+        # Section scores for deep analysis
+        if analysis_depth == "Deep":
+            status_text.text('📑 Analyzing sections...')
+            section_scores = calculate_section_scores(resume_sections, jd_sections)
         
         progress_bar.progress(80)
         status_text.text('🏆 Generating verdict...')
         
-        verdict_info = get_detailed_verdict(hard_match_score, semantic_match_score)
+        verdict_info = get_detailed_verdict(hard_match_score, semantic_match_score, missing_keywords)
+        
+        # Add section scores to verdict for deep analysis
+        if analysis_depth == "Deep" and section_scores:
+            verdict_info['section_scores'] = section_scores
         
         progress_bar.progress(100)
         status_text.text('✅ Analysis complete!')
@@ -358,6 +468,26 @@ def display_results(hard_match_score, semantic_match_score, verdict_info, detail
     # Detailed explanation
     st.markdown("### 📝 Analysis Summary")
     st.info(verdict_info['explanation'])
+    
+    # Recommendations
+    if 'recommendation' in verdict_info and verdict_info['recommendation']:
+        st.markdown("### 💡 Recommendations")
+        st.success(verdict_info['recommendation'])
+    
+    # Keyword gap analysis
+    if 'keyword_analysis' in verdict_info and verdict_info['keyword_analysis']:
+        st.markdown("### 🔍 Keyword Gap Analysis")
+        st.warning(verdict_info['keyword_analysis'])
+    
+    # Section scores for deep analysis
+    if 'section_scores' in verdict_info and verdict_info['section_scores']:
+        st.markdown("### 📑 Section Analysis")
+        section_data = verdict_info['section_scores']
+        section_df = pd.DataFrame({
+            'Section': list(section_data.keys()),
+            'Score': [f"{score:.1f}%" for score in section_data.values()]
+        })
+        st.table(section_df)
     
     # Visualization
     st.markdown("### 📊 Score Breakdown")

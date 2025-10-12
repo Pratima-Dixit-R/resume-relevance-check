@@ -7,6 +7,8 @@ from datetime import datetime
 import time
 from pathlib import Path
 import glob
+import requests
+import json
 
 # Page configuration
 st.set_page_config(
@@ -36,11 +38,17 @@ st.markdown("""
         border-left: 4px solid #4ECDC4;
     }
     .ai-status {
-        background-color: #e8f5e8;
-        border: 1px solid #4caf50;
-        border-radius: 8px;
-        padding: 0.8rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: 2px solid #ffffff;
+        border-radius: 12px;
+        padding: 1.2rem;
         margin: 1rem 0;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.1rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
     }
     .sample-data-card {
         background-color: #f8f9fa;
@@ -49,16 +57,135 @@ st.markdown("""
         padding: 1rem;
         margin: 0.5rem 0;
     }
+    .auth-container {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Global variables
+# Initialize session state
+if 'token' not in st.session_state:
+    st.session_state.token = None
+if 'user' not in st.session_state:
+    st.session_state.user = None
 if 'jd_text' not in st.session_state:
     st.session_state.jd_text = None
 if 'resume_text' not in st.session_state:
     st.session_state.resume_text = None
 if 'analysis_history' not in st.session_state:
     st.session_state.analysis_history = []
+
+# API Configuration
+API_BASE_URL = "http://localhost:8000/api/v1"
+
+def register_user(username, email, password):
+    """Register a new user"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/auth/register",
+            json={"username": username, "email": email, "password": password}
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Registration failed: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error during registration: {str(e)}")
+        return None
+
+def login_user(username, password):
+    """Login user and get token"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/auth/login",
+            json={"username": username, "password": password}
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Login failed: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error during login: {str(e)}")
+        return None
+
+def get_user_info(token):
+    """Get user information"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.get(f"{API_BASE_URL}/auth/users/me", headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Failed to get user info: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error getting user info: {str(e)}")
+        return None
+
+def get_user_evaluations(token):
+    """Get user's evaluation results"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.get(f"{API_BASE_URL}/evaluations/", headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Failed to get evaluations: {response.text}")
+            return []
+    except Exception as e:
+        st.error(f"Error getting evaluations: {str(e)}")
+        return []
+
+def upload_resume(token, file_bytes, filename):
+    """Upload resume file"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        files = {"file": (filename, file_bytes, "application/octet-stream")}
+        response = requests.post(f"{API_BASE_URL}/upload_resume/", files=files, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Failed to upload resume: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error uploading resume: {str(e)}")
+        return None
+
+def upload_jd(token, file_bytes, filename):
+    """Upload job description file"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        files = {"file": (filename, file_bytes, "application/octet-stream")}
+        response = requests.post(f"{API_BASE_URL}/upload_jd/", files=files, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Failed to upload job description: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error uploading job description: {str(e)}")
+        return None
+
+def evaluate_resume(token, resume_text, jd_text):
+    """Evaluate resume against job description"""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        data = {"resume_text": resume_text, "jd_text": jd_text}
+        response = requests.post(f"{API_BASE_URL}/evaluate/", json=data, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"Failed to evaluate resume: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error evaluating resume: {str(e)}")
+        return None
 
 def get_sample_data_paths():
     """Get paths to sample resume and job description files."""
@@ -81,6 +208,13 @@ def get_sample_data_paths():
 def extract_text_from_file(uploaded_file):
     """Extract text from uploaded file"""
     try:
+        # Add project root to Python path
+        import sys
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+        
         from src.utils.text_extraction import extract_text
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
@@ -99,6 +233,13 @@ def extract_text_from_file(uploaded_file):
 def load_sample_file(file_path):
     """Load a sample file and return its content."""
     try:
+        # Add project root to Python path
+        import sys
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+            
         if file_path.endswith('.pdf'):
             from src.utils.text_extraction import extract_text
             return extract_text(file_path)
@@ -114,6 +255,13 @@ def load_sample_file(file_path):
 def check_ai_status():
     """Check AI backend status"""
     try:
+        # Add project root to Python path
+        import sys
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+            
         from src.scoring.semantic_match import HUGGINGFACE_LLM_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE, SPACY_AVAILABLE
         status_info = []
         
@@ -138,9 +286,66 @@ def check_ai_status():
         st.error(f"❌ AI Status Error: {e}")
         return False
 
+def auth_page():
+    """Authentication page"""
+    st.markdown("## 🔐 User Authentication")
+    
+    auth_option = st.radio("Choose an option:", ["Login", "Register"])
+    
+    with st.form("auth_form"):
+        username = st.text_input("Username")
+        email = ""  # Initialize email variable
+        if auth_option == "Register":
+            email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        
+        submitted = st.form_submit_button(auth_option)
+        
+        if submitted:
+            if auth_option == "Register":
+                if username and email and password:
+                    user = register_user(username, email, password)
+                    if user:
+                        st.success("Registration successful! Please login.")
+                        st.rerun()
+                else:
+                    st.error("Please fill in all fields.")
+            else:  # Login
+                if username and password:
+                    token_response = login_user(username, password)
+                    if token_response:
+                        st.session_state.token = token_response["access_token"]
+                        user_info = get_user_info(st.session_state.token)
+                        if user_info:
+                            st.session_state.user = user_info
+                            st.success("Login successful!")
+                            st.rerun()
+                else:
+                    st.error("Please fill in all fields.")
+
+def logout():
+    """Logout user"""
+    st.session_state.token = None
+    st.session_state.user = None
+    st.success("You have been logged out.")
+    st.rerun()
+
 def main():
     # Main header
     st.markdown('<h1 class="main-header">🤖 Resume AI Analyzer</h1>', unsafe_allow_html=True)
+    
+    # Check if user is logged in
+    if not st.session_state.token:
+        # Show authentication page
+        auth_page()
+        # Check AI status
+        check_ai_status()
+        return
+    
+    # User is logged in - show main app
+    st.sidebar.markdown(f"## 👤 Welcome, {st.session_state.user['username']}!")
+    if st.sidebar.button("Logout"):
+        logout()
     
     # Check AI status
     ai_available = check_ai_status()
@@ -239,14 +444,16 @@ def upload_and_analyze_page(use_huggingface, analysis_depth):
             st.info(f"File: {jd_file.name} ({jd_file.size} bytes)")
             if st.button("🔄 Process Job Description", type="secondary"):
                 with st.spinner("Processing job description..."):
-                    jd_text = extract_text_from_file(jd_file)
-                    if jd_text:
-                        st.session_state.jd_text = jd_text
+                    # Upload file to backend
+                    file_bytes = jd_file.getvalue()
+                    response = upload_jd(st.session_state.token, file_bytes, jd_file.name)
+                    if response and "jd_text" in response:
+                        st.session_state.jd_text = response["jd_text"]
                         st.session_state.jd_processed = True
                         st.success("✅ Job Description processed!")
                         
                         with st.expander("🔍 Preview"):
-                            st.text_area("Content", jd_text[:500] + "...", height=150)
+                            st.text_area("Content", response["jd_text"][:500] + "...", height=150)
     
     with col2:
         st.header("📄 Resume")
@@ -256,14 +463,16 @@ def upload_and_analyze_page(use_huggingface, analysis_depth):
             st.info(f"File: {resume_file.name} ({resume_file.size} bytes)")
             if st.button("🔄 Process Resume", type="secondary"):
                 with st.spinner("Processing resume..."):
-                    resume_text = extract_text_from_file(resume_file)
-                    if resume_text:
-                        st.session_state.resume_text = resume_text
+                    # Upload file to backend
+                    file_bytes = resume_file.getvalue()
+                    response = upload_resume(st.session_state.token, file_bytes, resume_file.name)
+                    if response and "resume_text" in response:
+                        st.session_state.resume_text = response["resume_text"]
                         st.session_state.resume_processed = True
                         st.success("✅ Resume processed!")
                         
                         with st.expander("🔍 Preview"):
-                            st.text_area("Content", resume_text[:500] + "...", height=150)
+                            st.text_area("Content", response["resume_text"][:500] + "...", height=150)
     
     # Analysis section
     if getattr(st.session_state, 'jd_processed', False) and getattr(st.session_state, 'resume_processed', False):
@@ -287,50 +496,49 @@ def perform_analysis(use_huggingface, analysis_depth):
         status_text.text('🔄 Initializing analysis...')
         progress_bar.progress(20)
         
-        # Import modules
-        from src.scoring.hard_match import calculate_hard_match
-        from src.scoring.semantic_match import calculate_semantic_match, calculate_detailed_semantic_match
-        from src.scoring.verdict import get_detailed_verdict
-        
-        # Prepare data
-        status_text.text('📊 Preparing data...')
-        progress_bar.progress(40)
-        
-        resume_data = {"raw_text": st.session_state.resume_text}
-        jd_data = {"raw_text": st.session_state.jd_text}
-        
-        # Calculate scores
+        # Perform evaluation using backend API
         status_text.text('🧮 Calculating scores...')
         progress_bar.progress(60)
         
-        hard_match_score = calculate_hard_match(resume_data, jd_data)
+        evaluation_result = evaluate_resume(
+            st.session_state.token, 
+            st.session_state.resume_text, 
+            st.session_state.jd_text
+        )
         
-        if analysis_depth == "Deep":
-            semantic_results = calculate_detailed_semantic_match(resume_data, jd_data)
-            semantic_match_score = semantic_results.get('weighted_score', 0)
-            detailed_analysis = semantic_results.get('detailed_analysis', '')
-        else:
-            semantic_match_score = calculate_semantic_match(resume_data, jd_data, use_huggingface)
-            detailed_analysis = "Standard analysis completed"
+        if not evaluation_result:
+            st.error("Failed to get evaluation results")
+            return
         
         progress_bar.progress(80)
         status_text.text('🏆 Generating verdict...')
         
-        verdict_info = get_detailed_verdict(hard_match_score, semantic_match_score)
+        # Prepare verdict info
+        verdict_info = {
+            'combined_score': evaluation_result.get('final_score', 0),
+            'verdict': evaluation_result.get('verdict', 'Unknown'),
+            'explanation': f"Based on our analysis, your resume has a {evaluation_result.get('final_score', 0):.1f}% match with the job description.",
+            'recommendation': "Consider tailoring your resume more closely to the job requirements."
+        }
         
         progress_bar.progress(100)
         status_text.text('✅ Analysis complete!')
         
         # Display results
-        display_results(hard_match_score, semantic_match_score, verdict_info, detailed_analysis)
+        display_results(
+            evaluation_result.get('hard_match_score', 0),
+            evaluation_result.get('semantic_match_score', 0),
+            verdict_info,
+            ""
+        )
         
         # Store in history
         st.session_state.analysis_history.append({
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'hard_match': hard_match_score,
-            'semantic_match': semantic_match_score,
-            'final_score': verdict_info['combined_score'],
-            'verdict': verdict_info['verdict'],
+            'hard_match': evaluation_result.get('hard_match_score', 0),
+            'semantic_match': evaluation_result.get('semantic_match_score', 0),
+            'final_score': evaluation_result.get('final_score', 0),
+            'verdict': evaluation_result.get('verdict', 'Unknown'),
             'analysis_depth': analysis_depth
         })
         
@@ -397,19 +605,22 @@ def analytics_page():
     """Analytics page"""
     st.header("📊 Analytics & Insights")
     
-    if st.session_state.analysis_history:
-        df = pd.DataFrame(st.session_state.analysis_history)
+    # Get user evaluations
+    evaluations = get_user_evaluations(st.session_state.token)
+    
+    if evaluations:
+        df = pd.DataFrame(evaluations)
         
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Analyses", len(df))
         with col2:
-            st.metric("Average Score", f"{df['final_score'].mean():.1f}%")
+            st.metric("Average Score", f"{df['relevance_score'].mean():.1f}%")
         with col3:
-            st.metric("Best Score", f"{df['final_score'].max():.1f}%")
+            st.metric("Best Score", f"{df['relevance_score'].max():.1f}%")
         
         st.subheader("📈 Analysis History")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df[['id', 'relevance_score', 'verdict', 'created_at']], use_container_width=True)
     else:
         st.info("📊 No analysis history available.")
 
@@ -417,16 +628,18 @@ def view_results_page():
     """View results page"""
     st.header("📋 Recent Results")
     
-    if st.session_state.analysis_history:
-        for i, result in enumerate(reversed(st.session_state.analysis_history)):
-            with st.expander(f"Analysis {len(st.session_state.analysis_history)-i}: {result['verdict']} ({result['final_score']:.1f}%)"):
+    # Get user evaluations
+    evaluations = get_user_evaluations(st.session_state.token)
+    
+    if evaluations:
+        for i, result in enumerate(reversed(evaluations)):
+            with st.expander(f"Analysis {len(evaluations)-i}: {result['verdict']} ({result['relevance_score']:.1f}%)"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.write(f"**Timestamp:** {result['timestamp']}")
-                    st.write(f"**Hard Match:** {result['hard_match']:.1f}%")
+                    st.write(f"**Timestamp:** {result['created_at']}")
+                    st.write(f"**Hard Match:** {result['relevance_score']:.1f}%")
                 with col2:
-                    st.write(f"**Semantic Match:** {result['semantic_match']:.1f}%")
-                    st.write(f"**Analysis Depth:** {result['analysis_depth']}")
+                    st.write(f"**Verdict:** {result['verdict']}")
     else:
         st.info("📋 No results available.")
 
