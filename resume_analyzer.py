@@ -26,9 +26,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Add PWA manifest and mobile meta tags
+st.markdown("""
+<!-- PWA manifest -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Resume AI Analyzer">
+<meta name="theme-color" content="#4ECDC4">
+""", unsafe_allow_html=True)
+
+# Enhanced responsive CSS
 st.markdown("""
 <style>
+    /* Responsive design for all devices */
+    @media (max-width: 768px) {
+        .main-header {
+            font-size: 2rem !important;
+        }
+        .stButton>button {
+            width: 100% !important;
+            margin-bottom: 10px !important;
+        }
+        .stSidebar {
+            width: 100% !important;
+        }
+        .stDataFrame {
+            font-size: 0.8rem !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .main-header {
+            font-size: 1.5rem !important;
+        }
+        .metric-card {
+            padding: 0.5rem !important;
+        }
+        .stMetric {
+            font-size: 0.9rem !important;
+        }
+    }
+    
     .main-header {
         font-size: 3rem;
         font-weight: bold;
@@ -60,6 +98,12 @@ st.markdown("""
         border-radius: 8px;
         padding: 1rem;
         margin: 0.5rem 0;
+    }
+    
+    /* Cross-browser compatibility */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 </style>
 """, unsafe_allow_html=True)
