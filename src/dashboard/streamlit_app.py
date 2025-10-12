@@ -177,7 +177,7 @@ def evaluate_resume(token, resume_text, jd_text):
     try:
         headers = {"Authorization": f"Bearer {token}"}
         data = {"resume_text": resume_text, "jd_text": jd_text}
-        response = requests.post(f"{API_BASE_URL}/evaluate/", json=data, headers=headers)
+        response = requests.post(f"{API_BASE_URL}/evaluate/", data=data, headers=headers)
         if response.status_code == 200:
             return response.json()
         else:
@@ -494,11 +494,11 @@ def perform_analysis(use_huggingface, analysis_depth):
     try:
         # Initialize
         status_text.text('🔄 Initializing analysis...')
-        progress_bar.progress(20)
+        progress_bar.progress(10)
         
         # Perform evaluation using backend API
         status_text.text('🧮 Calculating scores...')
-        progress_bar.progress(60)
+        progress_bar.progress(30)
         
         evaluation_result = evaluate_resume(
             st.session_state.token, 
@@ -510,26 +510,37 @@ def perform_analysis(use_huggingface, analysis_depth):
             st.error("Failed to get evaluation results")
             return
         
-        progress_bar.progress(80)
-        status_text.text('🏆 Generating verdict...')
+        progress_bar.progress(60)
+        status_text.text('🏆 Generating detailed analysis...')
         
         # Prepare verdict info
         verdict_info = {
             'combined_score': evaluation_result.get('final_score', 0),
             'verdict': evaluation_result.get('verdict', 'Unknown'),
-            'explanation': f"Based on our analysis, your resume has a {evaluation_result.get('final_score', 0):.1f}% match with the job description.",
+            'explanation': evaluation_result.get('explanation', 'No explanation available'),
             'recommendation': "Consider tailoring your resume more closely to the job requirements."
+        }
+        
+        progress_bar.progress(80)
+        status_text.text('📊 Creating visualizations...')
+        
+        # Prepare detailed analysis data
+        detailed_analysis = {
+            'hard_match_score': evaluation_result.get('hard_match_score', 0),
+            'semantic_match_score': evaluation_result.get('semantic_match_score', 0),
+            'backend_scores': evaluation_result.get('backend_scores', {}),
+            'detailed_text': evaluation_result.get('detailed_analysis', '')
         }
         
         progress_bar.progress(100)
         status_text.text('✅ Analysis complete!')
         
-        # Display results
-        display_results(
+        # Display results with enhanced visualization
+        display_enhanced_results(
             evaluation_result.get('hard_match_score', 0),
             evaluation_result.get('semantic_match_score', 0),
             verdict_info,
-            ""
+            detailed_analysis
         )
         
         # Store in history
@@ -548,12 +559,17 @@ def perform_analysis(use_huggingface, analysis_depth):
         
     except Exception as e:
         st.error(f"🚨 Analysis error: {e}")
+        import traceback
+        st.text(traceback.format_exc())
         progress_bar.empty()
         status_text.empty()
 
-def display_results(hard_match_score, semantic_match_score, verdict_info, detailed_analysis):
-    """Display analysis results"""
+def display_enhanced_results(hard_match_score, semantic_match_score, verdict_info, detailed_analysis):
+    """Display enhanced analysis results with advanced visualizations"""
     st.success("✅ Analysis completed successfully!")
+    
+    # Main metrics in a highlighted section
+    st.markdown("### 📊 Key Metrics")
     
     # Main metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -575,34 +591,93 @@ def display_results(hard_match_score, semantic_match_score, verdict_info, detail
     st.markdown("### 📝 Analysis Summary")
     st.info(verdict_info['explanation'])
     
-    if detailed_analysis and detailed_analysis != "Standard analysis completed":
-        st.markdown("### 🤖 AI Analysis")
-        st.write(detailed_analysis)
+    # Advanced visualizations
+    st.markdown("### 📈 Detailed Analysis")
     
-    # Visualization
-    st.markdown("### 📊 Score Breakdown")
+    # Create comparison chart
+    fig_comparison = go.Figure()
     
     scores = [hard_match_score, semantic_match_score, verdict_info['combined_score']]
     labels = ['Hard Match', 'Semantic Match', 'Final Score']
     colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
     
-    fig = go.Figure(data=[
-        go.Bar(x=labels, y=scores, marker_color=colors,
-               text=[f"{score:.1f}%" for score in scores],
-               textposition='auto')
-    ])
+    fig_comparison.add_trace(go.Bar(
+        x=labels, 
+        y=scores, 
+        marker_color=colors,
+        text=[f"{score:.1f}%" for score in scores],
+        textposition='auto'
+    ))
     
-    fig.update_layout(
-        title="Resume Relevance Analysis",
+    fig_comparison.update_layout(
+        title="Score Comparison",
         yaxis_title="Score (%)",
         yaxis_range=[0, 100],
         height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_comparison, use_container_width=True)
+    
+    # Backend scores visualization if available
+    backend_scores = detailed_analysis.get('backend_scores', {})
+    if backend_scores:
+        st.markdown("### 🤖 AI Backend Performance")
+        
+        backend_labels = list(backend_scores.keys())
+        backend_values = list(backend_scores.values())
+        backend_colors = ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7']
+        
+        fig_backend = go.Figure(data=[
+            go.Bar(x=backend_labels, y=backend_values, marker_color=backend_colors[:len(backend_labels)],
+                   text=[f"{score:.1f}%" for score in backend_values],
+                   textposition='auto')
+        ])
+        
+        fig_backend.update_layout(
+            title="AI Backend Score Comparison",
+            yaxis_title="Score (%)",
+            yaxis_range=[0, 100],
+            height=300
+        )
+        
+        st.plotly_chart(fig_backend, use_container_width=True)
+    
+    # Radar chart for comprehensive view
+    st.markdown("### 📡 Comprehensive Analysis")
+    
+    categories = ['Hard Match', 'Semantic Match']
+    values = [hard_match_score, semantic_match_score]
+    
+    fig_radar = go.Figure()
+    
+    fig_radar.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        name='Resume Match',
+        line_color='#45B7D1'
+    ))
+    
+    fig_radar.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100]
+            )),
+        showlegend=False,
+        title="Match Profile Radar",
+        height=400
+    )
+    
+    st.plotly_chart(fig_radar, use_container_width=True)
+    
+    # Detailed breakdown
+    if detailed_analysis.get('detailed_text'):
+        st.markdown("### 🔍 Detailed Breakdown")
+        st.text(detailed_analysis['detailed_text'])
 
 def analytics_page():
-    """Analytics page"""
+    """Analytics page with advanced data analysis"""
     st.header("📊 Analytics & Insights")
     
     # Get user evaluations
@@ -611,18 +686,99 @@ def analytics_page():
     if evaluations:
         df = pd.DataFrame(evaluations)
         
-        col1, col2, col3 = st.columns(3)
+        # Convert relevance_score to numeric if it's not already
+        df['relevance_score'] = pd.to_numeric(df['relevance_score'], errors='coerce')
+        
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Analyses", len(df))
         with col2:
             st.metric("Average Score", f"{df['relevance_score'].mean():.1f}%")
         with col3:
             st.metric("Best Score", f"{df['relevance_score'].max():.1f}%")
+        with col4:
+            st.metric("Worst Score", f"{df['relevance_score'].min():.1f}%")
         
-        st.subheader("📈 Analysis History")
+        # Score distribution chart
+        st.subheader("📈 Score Distribution")
+        
+        fig_hist = go.Figure(data=[go.Histogram(x=df['relevance_score'], nbinsx=20)])
+        fig_hist.update_layout(
+            title="Distribution of Analysis Scores",
+            xaxis_title="Score (%)",
+            yaxis_title="Frequency",
+            height=400
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+        
+        # Trend analysis
+        st.subheader("📈 Score Trend Over Time")
+        
+        # Convert created_at to datetime
+        df['created_at'] = pd.to_datetime(df['created_at'])
+        df_sorted = df.sort_values('created_at')
+        
+        fig_trend = go.Figure()
+        fig_trend.add_trace(go.Scatter(
+            x=df_sorted['created_at'],
+            y=df_sorted['relevance_score'],
+            mode='lines+markers',
+            name='Score Trend',
+            line=dict(color='#45B7D1'),
+            marker=dict(size=8)
+        ))
+        
+        fig_trend.update_layout(
+            title="Score Trend Over Time",
+            xaxis_title="Date",
+            yaxis_title="Score (%)",
+            height=400
+        )
+        st.plotly_chart(fig_trend, use_container_width=True)
+        
+        # Verdict distribution
+        st.subheader("📊 Verdict Distribution")
+        
+        verdict_counts = df['verdict'].value_counts()
+        
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=verdict_counts.index,
+            values=verdict_counts.values,
+            marker_colors=['#FF6B6B', '#4ECDC4', '#45B7D1']
+        )])
+        
+        fig_pie.update_layout(
+            title="Distribution of Verdicts",
+            height=400
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+        # Detailed history table
+        st.subheader("📋 Analysis History")
         st.dataframe(df[['id', 'relevance_score', 'verdict', 'created_at']], use_container_width=True)
+        
+        # Performance insights
+        st.subheader("💡 Performance Insights")
+        
+        avg_score = df['relevance_score'].mean()
+        if avg_score >= 80:
+            st.success("🏆 Excellent performance! Your resumes consistently match job descriptions well.")
+        elif avg_score >= 50:
+            st.info("👍 Good performance with room for improvement. Focus on strengthening key skills.")
+        else:
+            st.warning("⚠️ Consider reviewing your resume content to better align with job requirements.")
+            
+        # Improvement suggestions
+        st.markdown("### 📝 Improvement Suggestions")
+        st.markdown("""
+        1. **Skill Alignment**: Ensure your resume highlights skills mentioned in job descriptions
+        2. **Keyword Optimization**: Use industry-specific terminology from the job posting
+        3. **Experience Relevance**: Tailor your experience descriptions to match job requirements
+        4. **Format Consistency**: Maintain a clean, professional format that's easy to parse
+        """)
+        
     else:
-        st.info("📊 No analysis history available.")
+        st.info("📊 No analysis history available. Run your first analysis to see insights!")
 
 def view_results_page():
     """View results page"""

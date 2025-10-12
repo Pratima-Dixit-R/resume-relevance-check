@@ -1,8 +1,7 @@
 import sys
 import os
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status, Form
 from typing import List, Optional
 
 # Add project paths
@@ -13,18 +12,15 @@ sys.path.insert(0, str(project_root / "src"))
 # Import after path modification
 import jwt
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
-from typing import List, Optional
 from src.parsing.resume_parser import ResumeParser
 from src.parsing.jd_parser import JDParser
 from src.scoring.hard_match import calculate_hard_match
-from src.scoring.semantic_match import calculate_semantic_match
-from src.scoring.verdict import get_verdict
-from src.storage.database import store_evaluation_results, get_evaluations, SessionLocal, create_user, get_user_by_username
+from src.scoring.semantic_match import calculate_semantic_match, calculate_detailed_semantic_match
+from src.scoring.verdict import get_verdict, get_detailed_verdict
+from src.storage.database import store_evaluation_results, get_evaluations, SessionLocal, create_user, get_user_by_username, get_user_by_email
 from src.api.auth import authenticate_user, create_access_token, get_current_active_user, TokenData
 from src.api.models import UserCreate, UserLogin, Token, User, Evaluation
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -34,14 +30,29 @@ async def register_user(user: UserCreate):
     """Register a new user"""
     db = SessionLocal()
     try:
-        # Check if user already exists
+        # Check if user already exists by username
         db_user = get_user_by_username(db, user.username)
         if db_user:
             raise HTTPException(status_code=400, detail="Username already registered")
         
+        # Check if user already exists by email
+        db_user = get_user_by_email(db, user.email)
+        if db_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
         # Create new user
         new_user = create_user(db, user.username, user.email, user.password)
         return new_user
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping
+        db.rollback()
+        raise
+    except Exception as e:
+        # Handle database constraint errors
+        db.rollback()
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(status_code=400, detail="User with this email or username already exists")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     finally:
         db.close()
 
@@ -93,21 +104,37 @@ async def upload_jd(file: UploadFile = File(...), current_user: User = Depends(g
     return {"message": "Job description uploaded successfully", "jd_text": jd_text}
 
 @router.post("/evaluate/")
-async def evaluate_resume(resume_text: str, jd_text: str, current_user: User = Depends(get_current_active_user)):
+async def evaluate_resume(
+    resume_text: str = Form(...), 
+    jd_text: str = Form(...), 
+    current_user: User = Depends(get_current_active_user)
+):
     # Parse the text data for better structure
     resume_data = {"raw_text": resume_text, "skills": []}
     jd_data = {"raw_text": jd_text, "required_skills": {"required": [], "preferred": []}}
     
+    # Calculate hard match score
     hard_match_score = calculate_hard_match(resume_data, jd_data)
-    semantic_match_score = calculate_semantic_match(resume_data, jd_data)
+    
+    # Calculate semantic match score with detailed analysis
+    semantic_analysis = calculate_detailed_semantic_match(resume_data, jd_data)
+    semantic_match_score = semantic_analysis['weighted_score']
+    
+    # Calculate final score
     final_score = (hard_match_score + semantic_match_score) / 2
     verdict = get_verdict(final_score)
+    
+    # Get detailed verdict
+    detailed_verdict = get_detailed_verdict(hard_match_score, semantic_match_score)
     
     evaluation_result = {
         "hard_match_score": hard_match_score,
         "semantic_match_score": semantic_match_score,
         "final_score": final_score,
-        "verdict": verdict
+        "verdict": verdict,
+        "detailed_analysis": semantic_analysis['detailed_analysis'],
+        "backend_scores": semantic_analysis['backend_scores'],
+        "explanation": detailed_verdict['explanation']
     }
     
     store_evaluation_results(evaluation_result, user_id=current_user.id)

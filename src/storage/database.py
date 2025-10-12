@@ -6,13 +6,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-import hashlib
-import secrets
-import os
+import bcrypt
 
 DATABASE_URL = "sqlite:///./evaluations.db"  # Update with your database URL
 
@@ -43,17 +41,20 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    salt = Column(String)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     def set_password(self, password: str):
-        """Hash and set password"""
-        self.salt = secrets.token_hex(16)
-        self.hashed_password = hashlib.sha256((password + self.salt).encode()).hexdigest()
+        """Hash and set password using bcrypt (LinkedIn-level security)"""
+        salt = bcrypt.gensalt(rounds=14)  # Using 14 rounds for stronger security
+        self.hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     
     def check_password(self, password: str) -> bool:
-        """Check if provided password matches hash"""
-        return hashlib.sha256((password + self.salt).encode()).hexdigest() == self.hashed_password
+        """Check if provided password matches hash using bcrypt"""
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), self.hashed_password.encode('utf-8'))
+        except Exception:
+            return False
 
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(bind=engine)
@@ -123,13 +124,17 @@ def store_evaluation_results(evaluation_result, user_id=None):
         db.close()
 
 def create_user(db, username: str, email: str, password: str):
-    """Create a new user"""
-    user = User(username=username, email=email)
-    user.set_password(password)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    """Create a new user with bcrypt password hashing"""
+    try:
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+    except Exception as e:
+        db.rollback()
+        raise e
 
 def get_user_by_username(db, username: str):
     """Get user by username"""

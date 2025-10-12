@@ -1,10 +1,10 @@
 @echo off
 echo ========================================
 echo RESUME RELEVANCE CHECKER
-echo LinkedIn-Level Authentication Security
+echo Enhanced Version with Public Access
 echo ========================================
 echo.
-echo Starting application with secure authentication...
+echo Starting application with all enhancements...
 echo.
-python final_auth_solution.py
+python final_launch_with_public_access.py
 pause
