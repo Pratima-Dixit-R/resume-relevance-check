@@ -3,16 +3,24 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"Building mobile app...\"",
+    "android": "npx cap add android && npx cap open android",
+    "ios": "npx cap add ios && npx cap open ios",
+    "sync": "npx cap sync",
+    "update": "npx cap update"
   },
   "keywords": [],
-  "author": "",
+  "author": "Resume AI Analyzer Team",
   "license": "ISC",
-  "description": "",
+  "description": "Mobile app for Resume AI Analyzer",
   "dependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
-    "@capacitor/ios": "^7.4.3"
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.0"
   }
 }
