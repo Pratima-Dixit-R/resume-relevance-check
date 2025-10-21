@@ -1,0 +1,21 @@
+{
+  "name": "Resume AI Analyzer",
+  "short_name": "ResumeAI",
+  "description": "AI-powered resume analysis tool that matches your resume with job descriptions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4ECDC4",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
